@@ -148,7 +148,7 @@ def parse_args():
     )
     parser.add_argument(
         "--crs",
-        help="Coordinate Reference System to use",
+        help="Planar Coordinate Reference System used for grid generation",
         default="epsg:3978"
     )
     return parser.parse_args()
