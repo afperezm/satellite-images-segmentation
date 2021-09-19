@@ -33,7 +33,7 @@ def _create_wkt(grid_csv, x_min, x_max, y_min, y_max, crs):
 
     print("- Creating buffer around roads")
 
-    roads_buffered = roads_dissolved.buffer(4)
+    roads_buffered = roads_dissolved.buffer(10)
 
     print(f"  Done, got {len(roads_buffered)} features of type {roads_buffered.geom_type[0]}")
 
