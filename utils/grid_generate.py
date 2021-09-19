@@ -13,7 +13,7 @@ FIELDNAMES = ['Id', 'PolygonWkt']
 PARAMS = None
 
 
-def _create_and_save_grid(location, grid_step_size, output_dir, use_centroid, crs):
+def _create_and_save_grid(location, grid_width, grid_step_size, output_dir, use_centroid, crs):
 
     print(f"- Geocoding location: {location}")
     g = geocoder.google(location, key='AIzaSyDNRG-2VaztgMhymInIKZN3LF8vO3nIDQM')
@@ -52,10 +52,10 @@ def _create_and_save_grid(location, grid_step_size, output_dir, use_centroid, cr
         centroid = Point(g.latlng[1], g.latlng[0])
         centroid_planar = to_planar_transformer.transform(centroid.x, centroid.y)
 
-        northeast = to_geographic_transformer.transform(centroid_planar[0] + grid_step_size,
-                                                        centroid_planar[1] + grid_step_size)
-        southwest = to_geographic_transformer.transform(centroid_planar[0] - grid_step_size,
-                                                        centroid_planar[1] - grid_step_size)
+        northeast = to_geographic_transformer.transform(centroid_planar[0] + grid_width,
+                                                        centroid_planar[1] + grid_width)
+        southwest = to_geographic_transformer.transform(centroid_planar[0] - grid_width,
+                                                        centroid_planar[1] - grid_width)
 
         bbox = {'northeast': [northeast[1], northeast[0]], 'southwest': [southwest[1], southwest[0]]}
 
@@ -116,11 +116,12 @@ def _create_and_save_grid(location, grid_step_size, output_dir, use_centroid, cr
 def main():
     output_dir = PARAMS.output_dir
     location = PARAMS.location
+    grid_width = PARAMS.width
     grid_step_size = PARAMS.step_size  # Defaults to 10 km
     use_centroid = PARAMS.use_centroid
     crs = PARAMS.crs
 
-    _create_and_save_grid(location, grid_step_size, output_dir, use_centroid, crs)
+    _create_and_save_grid(location, grid_width, grid_step_size, output_dir, use_centroid, crs)
 
 
 def parse_args():
@@ -136,10 +137,16 @@ def parse_args():
         required=True
     )
     parser.add_argument(
+        "--width",
+        type=int,
+        help="Grid width (in meters)",
+        default=3000
+    )
+    parser.add_argument(
         "--step_size",
         type=int,
         help="Grid step size (in meters)",
-        default=10000
+        default=1000
     )
     parser.add_argument(
         "--use_centroid",
