@@ -1,9 +1,10 @@
 import argparse
+import csv
 import geopandas as gpd
 import os
 
 from grid_merge import _compute_limits
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 
 
 def _create_wkt(grid_csv, x_min, x_max, y_min, y_max, crs):
@@ -45,15 +46,18 @@ def _create_wkt(grid_csv, x_min, x_max, y_min, y_max, crs):
     # roads_clipped_gdf = gpd.GeoDataFrame(geometry=roads_clipped)
     # roads_clipped_gdf.to_file("{}/{}".format(data_dir, 'highway_thompson_clipped.shp'))
 
-    roads_wkt = '{}/{}'.format(data_dir, 'roads_wkt.csv')
+    roads_wkt_csv = '{}/{}'.format(data_dir, 'roads_wkt.csv')
 
     print(f"  Done, got {len(roads_clipped)} features of type {roads_clipped.geom_type[0]}")
 
-    print(f"- Saving WKT clipped roads polygons in CSV format to: {roads_wkt}")
+    print(f"- Saving WKT clipped roads polygons in CSV format to: {roads_wkt_csv}")
 
-    roads_clipped_wkt = roads_clipped.to_wkt(rounding_precision=-1)
+    roads_clipped_wkt = MultiPolygon([roads_clipped.all()]).wkt
 
-    roads_clipped_wkt.to_csv(roads_wkt)
+    with open(roads_wkt_csv, "wt", encoding="utf-8", newline="") as roads_wkt_csv_file:
+        writer = csv.DictWriter(roads_wkt_csv_file, fieldnames=["ImageId", "ClassType", "MultipolygonWKT"])
+        writer.writeheader()
+        writer.writerow({"ImageId": "city", "ClassType": "1", "MultipolygonWKT": roads_clipped_wkt})
 
     print("  Done")
 
