@@ -36,15 +36,15 @@ Make coastsat visible as package:
 Generate grids:
 
 ```bash
-python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Gillam, MB, Canada" --step_size 10000 --use_centroid --crs epsg:3978
+python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Gillam, MB, Canada" --step_size 10000 --use_centroid --crs epsg:32615
 ```
 
 ```bash
-python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Thompson, MB, Canada" --step_size 10000 --use_centroid --crs epsg:3978
+python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Thompson, MB, Canada" --step_size 10000 --use_centroid --crs epsg:32614
 ```
 
 ```bash
-python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Yellowknife, NT, Canada" --step_size 10000 --use_centroid --crs epsg:3978
+python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Yellowknife, NT, Canada" --step_size 10000 --use_centroid --crs epsg:32612
 ```
 
 Download images:
@@ -59,6 +59,34 @@ python utils/grid_download.py --grid_file ~/data/permafrost-imagery/thompson_mb_
 
 ```bash
 python utils/grid_download.py --grid_file ~/data/permafrost-imagery/yellowknife_nt_canada/grid_wkt.csv --start_date 2021-01-01 --end_date 2021-01-31 --satellites_list S2
+```
+
+Merge images:
+
+```bash
+python utils/grid_merge.py --grid_file ~/data/permafrost-imagery/gillam_mb_canada/grid_wkt.csv --satellites_list S2 --resolution_list 10m
+```
+
+```bash
+python utils/grid_merge.py --grid_file ~/data/permafrost-imagery/thompson_mb_canada/grid_wkt.csv --satellites_list S2 --resolution_list 10m
+```
+
+```bash
+python utils/grid_merge.py --grid_file ~/data/permafrost-imagery/yellowknife_nt_canada/grid_wkt.csv --satellites_list S2 --resolution_list 10m
+```
+
+Merge roads:
+
+```bash
+python utils/roads_merge.py --grid_file /home/andresf/data/permafrost-imagery/gillam_mb_canada/grid_wkt.csv --crs epsg:32615
+```
+
+```bash
+python utils/roads_merge.py --grid_file /home/andresf/data/permafrost-imagery/thompson_mb_canada/grid_wkt.csv --crs epsg:32614
+```
+
+```bash
+python utils/roads_merge.py --grid_file /home/andresf/data/permafrost-imagery/yellowknife_nt_canada/grid_wkt.csv --crs epsg:32612
 ```
 
 ## References
