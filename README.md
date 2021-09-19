@@ -36,15 +36,15 @@ Make coastsat visible as package:
 Generate grids:
 
 ```bash
-python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Gillam, MB, Canada" --step_size 10000 --use_centroid --crs epsg:32615
+python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Gillam, MB, Canada" --width 3000 --step_size 1000 --use_centroid --crs epsg:32615
 ```
 
 ```bash
-python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Thompson, MB, Canada" --step_size 10000 --use_centroid --crs epsg:32614
+python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Thompson, MB, Canada" --width 3000 --step_size 1000 --use_centroid --crs epsg:32614
 ```
 
 ```bash
-python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Yellowknife, NT, Canada" --step_size 10000 --use_centroid --crs epsg:32612
+python utils/grid_generate.py --output_dir ~/data/permafrost-imagery/ --location "Yellowknife, NT, Canada" --width 3000 --step_size 1000 --use_centroid --crs epsg:32612
 ```
 
 Download images:
