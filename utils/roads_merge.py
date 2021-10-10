@@ -82,12 +82,12 @@ def parse_args():
     )
     parser.add_argument(
         "--grid_file",
-        help="Grid file with polygons of the areas to download",
+        help="Grid CSV file with polygons of the areas to download",
         required=True
     )
     parser.add_argument(
         "--crs",
-        help="Coordinate Reference System to use",
+        help="Output coordinate reference system",
         default="epsg:3978"
     )
     return parser.parse_args()
