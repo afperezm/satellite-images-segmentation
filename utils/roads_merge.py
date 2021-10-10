@@ -7,13 +7,13 @@ from grid_merge import _compute_limits
 from shapely.geometry import MultiPolygon, Polygon
 
 
-def _create_wkt(grid_csv, x_min, x_max, y_min, y_max, crs):
+def _create_wkt(roads_shp, x_min, x_max, y_min, y_max, crs):
 
-    data_dir = os.path.dirname(grid_csv)
+    data_dir = os.path.dirname(roads_shp)
 
     print("- Loading roads shapefile")
 
-    roads = gpd.read_file('{}/{}'.format(data_dir, 'roads.shp'))
+    roads = gpd.read_file(roads_shp)
     roads = roads.to_crs(crs)
 
     # No need to filter roads since the shape file is expected to have all the right features
@@ -63,17 +63,23 @@ def _create_wkt(grid_csv, x_min, x_max, y_min, y_max, crs):
 
 
 def main():
+    roads_file = PARAMS.roads_file
     grid_file = PARAMS.grid_file
     crs = PARAMS.crs
 
     # TODO Fix limits computation, due to coordinates projection clipping is not so correct
     x_min, x_max, y_min, y_max = _compute_limits(grid_file, crs)
 
-    _create_wkt(grid_file, x_min, x_max, y_min, y_max, crs)
+    _create_wkt(roads_file, x_min, x_max, y_min, y_max, crs)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Utility to merge roads features")
+    parser.add_argument(
+        "--roads_file",
+        help="Roads Shape file with polygons of roads to merge",
+        required=True
+    )
     parser.add_argument(
         "--grid_file",
         help="Grid file with polygons of the areas to download",
