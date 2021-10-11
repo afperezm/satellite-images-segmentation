@@ -44,7 +44,7 @@ def _compose_dataset(grid_csv, roads_shp, epsg_crs):
     output_dir = os.path.dirname(images_dir)
 
     grid_sizes_rows = OrderedDict()
-    train_wkt_rows = OrderedDict()
+    train_polys_rows = OrderedDict()
 
     # Load roads shape
     roads_buffered = _load_roads(roads_shp, epsg_crs)
@@ -140,15 +140,20 @@ def _compose_dataset(grid_csv, roads_shp, epsg_crs):
                 if out_image_name not in grid_sizes_rows:
                     grid_sizes_rows[out_image_name] = (out_image_name, x_min, x_max, y_min, y_max)
 
-                if out_image_name not in train_wkt_rows:
-                    train_wkt_rows[out_image_name] = (out_image_name, 1, roads_clipped_wkt)
+                if out_image_name not in train_polys_rows:
+                    train_polys_rows[out_image_name] = (out_image_name, 1, roads_clipped_wkt)
+
+    return grid_sizes_rows, train_polys_rows
+
+
+def _save_dataset(output_dir, grid_sizes, train_polygons):
 
     grid_sizes_csv = os.path.join(output_dir, 'grid_sizes.csv')
     print(f"- Saving grid sizes in CSV format to: {grid_sizes_csv}")
     with open(grid_sizes_csv, "wt", encoding="utf-8", newline="") as grid_sizes_csv_file:
         writer = csv.DictWriter(grid_sizes_csv_file, fieldnames=['ImageId', 'Xmax', 'Ymin', 'Xmin', 'Ymax'])
         writer.writeheader()
-        for image_id, x_min, x_max, y_min, y_max in list(grid_sizes_rows.values()):
+        for image_id, x_min, x_max, y_min, y_max in list(grid_sizes.values()):
             writer.writerow({'ImageId': image_id, 'Xmax': x_max, 'Ymin': y_min, 'Xmin': x_min, 'Ymax': y_max})
     print("  Done")
 
@@ -157,34 +162,54 @@ def _compose_dataset(grid_csv, roads_shp, epsg_crs):
     with open(train_wkt_csv, "wt", encoding="utf-8", newline="") as train_wkt_csv_file:
         writer = csv.DictWriter(train_wkt_csv_file, fieldnames=['ImageId', 'ClassType', 'MultipolygonWKT'])
         writer.writeheader()
-        for image_id, class_type, multipolygon_wkt in list(train_wkt_rows.values()):
+        for image_id, class_type, multipolygon_wkt in list(train_polygons.values()):
             writer.writerow({'ImageId': image_id, 'ClassType': class_type, 'MultipolygonWKT': multipolygon_wkt})
     print("  Done")
 
 
 def main():
-    grid_file = PARAMS.grid_file
-    roads_file = PARAMS.roads_file
-    crs = PARAMS.crs
+    output_dir = PARAMS.output_dir
+    grids_files = PARAMS.grids_files
+    roads_files = PARAMS.roads_files
+    crs_list = PARAMS.crs_list
 
-    _compose_dataset(grid_file, roads_file, crs)
+    assert len(grids_files) == len(roads_files) == len(crs_list)
+
+    grid_sizes, train_polygons = OrderedDict(), OrderedDict()
+
+    for idx in range(0, len(grids_files)):
+
+        grid_sizes_rows, train_wkt_rows = _compose_dataset(grids_files[idx], roads_files[idx], crs_list[idx])
+
+        grid_sizes.update(grid_sizes_rows)
+        train_polygons.update(train_wkt_rows)
+
+    _save_dataset(output_dir, grid_sizes, train_polygons)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Utility to download patches from a grid of polygons in WKT format")
     parser.add_argument(
-        "--grid_file",
-        help="Grid file with polygons of the areas downloaded",
+        "--output_dir",
+        help="Output directory where to store generated dataset files",
         required=True
     )
     parser.add_argument(
-        "--roads_file",
-        help="Roads shape file",
+        "--grids_files",
+        nargs='+',
+        help="Grids files with polygons of the areas downloaded",
         required=True
     )
     parser.add_argument(
-        "--crs",
-        help="Coordinate Reference System to use",
+        "--roads_files",
+        nargs='+',
+        help="Roads shape files",
+        required=True
+    )
+    parser.add_argument(
+        "--crs_list",
+        nargs='+',
+        help="Output coordinate reference systems to use",
         default="epsg:3978"
     )
     return parser.parse_args()
