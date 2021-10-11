@@ -115,13 +115,7 @@ def _compose_dataset(grid_csv, roads_shp, epsg_crs):
                 satellite = image_name.split('_')[1]
                 resolution = image_name.split('_')[3]
 
-                if not timestamp == '2021-01-28-17-48-11':
-                    continue
-
-                if not satellite == 'S2':
-                    continue
-
-                if not resolution == '10m':
+                if timestamp not in ['2021-01-28-17-48-11', '2021-01-26-17-58-29', '2021-01-30-19-16-58']:
                     continue
 
                 band_name = f'{satellite}_{resolution}'
