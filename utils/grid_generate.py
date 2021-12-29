@@ -4,35 +4,47 @@ import os
 import re
 import string
 
-import geocoder
+import geopandas as gpd
 
 from pyproj import Transformer
+from sentinelhub import BBox, UtmZoneSplitter
 from shapely.geometry import Point, Polygon
 
 FIELDNAMES = ['Id', 'PolygonWkt']
 PARAMS = None
 
 
-def _create_and_save_grid(location, grid_width, grid_step_size, output_dir, use_centroid, crs):
+def _create_and_save_grid(aoi_geojson, grid_step_size, output_dir, crs):
 
-    print(f"- Geocoding location: {location}")
-    g = geocoder.google(location, key='AIzaSyDNRG-2VaztgMhymInIKZN3LF8vO3nIDQM')
+    # TODO Use location name to retrieve geometry from OSM instead of processing a GeoJSON
+    # location = location.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation)))
+    # location = re.sub(' +', ' ', location)
+    # location = location.replace(' ', '_')
+    # location = str.lower(location)
 
-    print("- Geocoded location")
-    print(f"  {g.latlng}")
+    # Use filename location name
+    location = os.path.splitext(os.path.basename(aoi_geojson))[0]
 
-    print("- Geocoded location bounding box")
-    print(f"  {g.bbox}")
-
-    location = location.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation)))
-    location = re.sub(' +', ' ', location)
-    location = location.replace(' ', '_')
-    location = str.lower(location)
-
+    # Create output directory
     output_dir = os.path.join(output_dir, location)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    # Load area of interest GeoJSON adn split into smaller bounding boxes
+    aoi = gpd.read_file(aoi_geojson)
+    aoi = aoi.to_crs(crs)
+    aoi = aoi.buffer(500)
+
+    print("- Splitting area of interest into small bounding boxes of {} km2".format(grid_step_size / 1000))
+
+    bbox_splitter = UtmZoneSplitter(shape_list=[aoi.geometry[0]],
+                                    crs=aoi.crs,
+                                    bbox_size=grid_step_size)
+
+    bbox_list = bbox_splitter.get_bbox_list()
+
+    print(f"  Done, got {len(bbox_list)} bounding boxes")
 
     # Convert between coordinate systems
     # https://gis.stackexchange.com/questions/78838/converting-projected-coordinates-to-lat-lon-using-python
@@ -45,57 +57,22 @@ def _create_and_save_grid(location, grid_width, grid_step_size, output_dir, use_
     # Set up transformers
     # Planar coordinates: EPSG:3978 NAD83 / Canada Atlas Lambert
     # Geographical coordinates: EPSG:4326 WGS 84
-    to_planar_transformer = Transformer.from_crs('epsg:4326', crs, always_xy=True)
+    # to_planar_transformer = Transformer.from_crs('epsg:4326', crs, always_xy=True)
     to_geographic_transformer = Transformer.from_crs(crs, 'epsg:4326', always_xy=True)
 
-    if use_centroid:
-        centroid = Point(g.latlng[1], g.latlng[0])
-        centroid_planar = to_planar_transformer.transform(centroid.x, centroid.y)
+    # Transform list of bounding boxes into a list of polygons
+    grid_polygons = []
 
-        northeast = to_geographic_transformer.transform(centroid_planar[0] + grid_width,
-                                                        centroid_planar[1] + grid_width)
-        southwest = to_geographic_transformer.transform(centroid_planar[0] - grid_width,
-                                                        centroid_planar[1] - grid_width)
+    for bbox in bbox_list:
 
-        bbox = {'northeast': [northeast[1], northeast[0]], 'southwest': [southwest[1], southwest[0]]}
+        top_left = to_geographic_transformer.transform(bbox.min_x, bbox.max_y)
+        top_right = to_geographic_transformer.transform(bbox.max_x, bbox.max_y)
+        bottom_right = to_geographic_transformer.transform(bbox.max_x, bbox.min_y)
+        bottom_left = to_geographic_transformer.transform(bbox.min_x, bbox.min_y)
 
-        print("- Computed location")
-        print(f"  {centroid}")
+        polygon = Polygon([top_left, top_right, bottom_right, bottom_left])
 
-        print("- Computed location bounding box")
-        print(f"  {bbox}")
-    else:
-        bbox = g.bbox
-
-    top_right_corner = Point(bbox['northeast'][1], bbox['northeast'][0])
-    bottom_left_corner = Point(bbox['southwest'][1], bbox['southwest'][0])
-
-    # Project bounding box corners to planar coordinate system
-    top_right_planar = to_planar_transformer.transform(top_right_corner.x, top_right_corner.y)
-    bottom_left_planar = to_planar_transformer.transform(bottom_left_corner.x, bottom_left_corner.y)
-
-    # Initialize list of grid
-    grid_coordinates = []
-
-    print("- Creating grid with rectangle polygons of {} km2".format(grid_step_size / 1000))
-
-    # Loop from left to right
-    x = bottom_left_planar[0]
-    while top_right_planar[0] - x > 0.0001:
-        # Loop from top to bottom
-        y = top_right_planar[1]
-        while y - bottom_left_planar[1] > 0.0001:
-            top_left = to_geographic_transformer.transform(x, y)
-            top_right = to_geographic_transformer.transform(x + grid_step_size, y)
-            bottom_right = to_geographic_transformer.transform(x + grid_step_size, y - grid_step_size)
-            bottom_left = to_geographic_transformer.transform(x, y - grid_step_size)
-            polygon = Polygon([top_left, top_right, bottom_right, bottom_left])
-            # print(f"  {polygon.wkt}")
-            grid_coordinates.append(polygon.wkt)
-            y -= grid_step_size
-        x += grid_step_size
-
-    print(f"  Done, got {len(grid_coordinates)} polygons")
+        grid_polygons.append(polygon.wkt)
 
     grid_csv = os.path.join(output_dir, "grid_wkt.csv")
 
@@ -104,7 +81,7 @@ def _create_and_save_grid(location, grid_width, grid_step_size, output_dir, use_
     with open(grid_csv, "wt", encoding="utf-8", newline="") as grid_csv_file:
         grid_writer = csv.DictWriter(grid_csv_file, fieldnames=FIELDNAMES)
         grid_writer.writeheader()
-        for idx, polygon_wkt in enumerate(grid_coordinates):
+        for idx, polygon_wkt in enumerate(grid_polygons):
             grid_writer.writerow({
                 FIELDNAMES[0]: idx,
                 FIELDNAMES[1]: polygon_wkt
@@ -115,13 +92,11 @@ def _create_and_save_grid(location, grid_width, grid_step_size, output_dir, use_
 
 def main():
     output_dir = PARAMS.output_dir
-    location = PARAMS.location
-    grid_width = PARAMS.width
-    grid_step_size = PARAMS.step_size  # Defaults to 10 km
-    use_centroid = PARAMS.use_centroid
-    crs = PARAMS.crs
+    aoi_file = PARAMS.aoi_file
+    grid_step_size = PARAMS.step_size  # Defaults to 5 km
+    crs = PARAMS.crs  # Defaults to EPSG 3978
 
-    _create_and_save_grid(location, grid_width, grid_step_size, output_dir, use_centroid, crs)
+    _create_and_save_grid(aoi_file, grid_step_size, output_dir, crs)
 
 
 def parse_args():
@@ -132,26 +107,15 @@ def parse_args():
         required=True
     )
     parser.add_argument(
-        "--location",
-        help="Location name",
+        "--aoi_file",
+        help="Area of interest file (in GeoJSON format)",
         required=True
-    )
-    parser.add_argument(
-        "--width",
-        type=int,
-        help="Grid width (in meters)",
-        default=3000
     )
     parser.add_argument(
         "--step_size",
         type=int,
-        help="Grid step size (in meters)",
-        default=1000
-    )
-    parser.add_argument(
-        "--use_centroid",
-        action="store_true",
-        help="Flag to indicated whether bounding box must be computed from geocoded centroid"
+        help="Bounding boxes size (in meters)",
+        default=5000
     )
     parser.add_argument(
         "--crs",
