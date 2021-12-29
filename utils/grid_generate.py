@@ -6,7 +6,6 @@ import string
 
 import geopandas as gpd
 
-from pyproj import Transformer
 from sentinelhub import BBox, UtmZoneSplitter
 from shapely.geometry import Point, Polygon
 
@@ -58,17 +57,17 @@ def _create_and_save_grid(aoi_geojson, grid_step_size, output_dir, crs):
     # Planar coordinates: EPSG:3978 NAD83 / Canada Atlas Lambert
     # Geographical coordinates: EPSG:4326 WGS 84
     # to_planar_transformer = Transformer.from_crs('epsg:4326', crs, always_xy=True)
-    to_geographic_transformer = Transformer.from_crs(crs, 'epsg:4326', always_xy=True)
+    # to_geographic_transformer = Transformer.from_crs(crs, 'epsg:4326', always_xy=True)
 
     # Transform list of bounding boxes into a list of polygons
     grid_polygons = []
 
     for bbox in bbox_list:
 
-        top_left = to_geographic_transformer.transform(bbox.min_x, bbox.max_y)
-        top_right = to_geographic_transformer.transform(bbox.max_x, bbox.max_y)
-        bottom_right = to_geographic_transformer.transform(bbox.max_x, bbox.min_y)
-        bottom_left = to_geographic_transformer.transform(bbox.min_x, bbox.min_y)
+        top_left = (bbox.min_x, bbox.max_y)
+        top_right = (bbox.max_x, bbox.max_y)
+        bottom_right = (bbox.max_x, bbox.min_y)
+        bottom_left = (bbox.min_x, bbox.min_y)
 
         polygon = Polygon([top_left, top_right, bottom_right, bottom_left])
 
