@@ -1,13 +1,13 @@
 import argparse
 import csv
 import geopandas as gpd
+import pandas as pd
 import os
 
-from grid_merge import _compute_limits
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon
 
 
-def _create_wkt(roads_shp, x_min, x_max, y_min, y_max, crs):
+def _create_wkt(roads_shp, grid_csv, crs):
 
     data_dir = os.path.dirname(roads_shp)
 
@@ -39,7 +39,11 @@ def _create_wkt(roads_shp, x_min, x_max, y_min, y_max, crs):
 
     print("- Clipping roads buffered lines")
 
-    grid_polygon = Polygon([[x_min, y_max], [x_max, y_max], [x_max, y_min], [x_min, y_min]])
+    grid = pd.read_csv(grid_csv)
+
+    grid_polygons = gpd.GeoSeries.from_wkt(grid['PolygonWkt'], crs='epsg:4326')
+    grid_polygons = grid_polygons.to_crs(crs)
+    grid_polygon = grid_polygons.unary_union
 
     roads_clipped = gpd.clip(roads_buffered, grid_polygon)
 
@@ -52,7 +56,14 @@ def _create_wkt(roads_shp, x_min, x_max, y_min, y_max, crs):
 
     print(f"- Saving WKT clipped roads polygons in CSV format to: {roads_wkt_csv}")
 
-    roads_clipped_wkt = MultiPolygon([roads_clipped.all()]).wkt
+    if roads_clipped.empty:
+        roads_clipped_wkt = MultiPolygon([roads_clipped.any()]).wkt
+    elif roads_clipped.geom_type[0] == 'Polygon':
+        roads_clipped_wkt = MultiPolygon([roads_clipped.all()]).wkt
+    elif roads_clipped.geom_type[0] == 'MultiPolygon':
+        roads_clipped_wkt = MultiPolygon(roads_clipped.all()).wkt
+    else:
+        raise ValueError('Unknown geometry type')
 
     with open(roads_wkt_csv, "wt", encoding="utf-8", newline="") as roads_wkt_csv_file:
         writer = csv.DictWriter(roads_wkt_csv_file, fieldnames=["ImageId", "ClassType", "MultipolygonWKT"])
@@ -67,22 +78,19 @@ def main():
     grid_file = PARAMS.grid_file
     crs = PARAMS.crs
 
-    # TODO Fix limits computation, due to coordinates projection clipping is not so correct
-    x_min, x_max, y_min, y_max = _compute_limits(grid_file, crs)
-
-    _create_wkt(roads_file, x_min, x_max, y_min, y_max, crs)
+    _create_wkt(roads_file, grid_file, crs)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Utility to merge roads features")
     parser.add_argument(
         "--roads_file",
-        help="Roads Shape file with polygons of roads to merge",
+        help="Roads shape file with polygons of roads to merge",
         required=True
     )
     parser.add_argument(
         "--grid_file",
-        help="Grid CSV file with polygons of the areas to download",
+        help="Grid CSV file (in WKT format) with polygons (coordinates in given CRS) of the areas to download",
         required=True
     )
     parser.add_argument(
