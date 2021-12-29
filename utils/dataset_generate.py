@@ -7,7 +7,6 @@ import glob
 import os
 import subprocess
 
-from pyproj import Transformer
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon
 
@@ -48,9 +47,6 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs):
     # Load roads shape
     roads_buffered = _load_roads(roads_shp, epsg_crs)
 
-    # Set up transformers
-    to_planar_transformer = Transformer.from_crs('epsg:4326', epsg_crs, always_xy=True)
-
     with open(grid_csv, "rt", encoding="utf-8", newline="") as grid_csv_file:
         # Init CSV reader
         reader = csv.DictReader(grid_csv_file, fieldnames=['Id', 'PolygonWkt'])
@@ -72,10 +68,10 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs):
             print('  Done')
 
             # Retrieve tile corners
-            top_left = to_planar_transformer.transform(polygon_wkt.exterior.xy[0][3], polygon_wkt.exterior.xy[1][3])
-            top_right = to_planar_transformer.transform(polygon_wkt.exterior.xy[0][2], polygon_wkt.exterior.xy[1][2])
-            bottom_right = to_planar_transformer.transform(polygon_wkt.exterior.xy[0][1], polygon_wkt.exterior.xy[1][1])
-            bottom_left = to_planar_transformer.transform(polygon_wkt.exterior.xy[0][0], polygon_wkt.exterior.xy[1][0])
+            top_left = (polygon_wkt.exterior.xy[0][3], polygon_wkt.exterior.xy[1][3])
+            top_right = (polygon_wkt.exterior.xy[0][2], polygon_wkt.exterior.xy[1][2])
+            bottom_right = (polygon_wkt.exterior.xy[0][1], polygon_wkt.exterior.xy[1][1])
+            bottom_left = (polygon_wkt.exterior.xy[0][0], polygon_wkt.exterior.xy[1][0])
 
             # Compute limits
             x_min = min(top_left[0], bottom_left[0], top_right[0], bottom_right[0])
