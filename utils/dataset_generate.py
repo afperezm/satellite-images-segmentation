@@ -38,10 +38,9 @@ def _load_roads(roads_shp, roads_crs):
     return roads_buffered
 
 
-def _compose_dataset(grid_csv, roads_shp, epsg_crs):
+def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs):
 
-    images_dir = os.path.dirname(grid_csv)
-    output_dir = os.path.dirname(images_dir)
+    images_dir = output_dir
 
     grid_sizes_rows = OrderedDict()
     train_polys_rows = OrderedDict()
@@ -104,22 +103,29 @@ def _compose_dataset(grid_csv, roads_shp, epsg_crs):
                 raise ValueError('Unknown geometry type')
 
             # Find raster images for the give grid tile
-            images = sorted(glob.glob(os.path.join(images_dir, f'{idx}', '**', '**', '*.tif')))
+            images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-{idx:04d}.tif')))
 
             for image_filename in images:
 
                 image_name = os.path.splitext(os.path.basename(image_filename))[0]
 
-                location = os.path.dirname(grid_csv).split(os.sep)[-1]
-                timestamp = image_name.split('_')[0]
-                satellite = image_name.split('_')[1]
-                resolution = image_name.split('_')[3]
+                location = '_'.join(image_name.split('_')[0:3])
+                timestamp = image_name.split('_')[3]
+                satellite = os.path.basename(os.path.dirname(image_filename)).split('_')[0]
+                resolution = os.path.basename(os.path.dirname(image_filename)).split('_')[1]
 
-                if timestamp not in ['2021-01-28-17-48-11', '2021-01-26-17-58-29', '2021-01-30-19-16-58']:
-                    continue
+                # if timestamp not in ['2021-01-28-17-48-11', '2021-01-26-17-58-29', '2021-01-30-19-16-58']:
+                #     continue
+                # if timestamp not in ['2021-06-14-17-38-13']:  # Gillam MB Canada
+                #     continue
+                # if timestamp not in ['2021-06-27-17-48-33']:  # Thompson MB Canada
+                #     continue
+                # if timestamp not in ['2021-06-29-19-16-59']:  # Yellowknife MB Canada
+                #     continue
 
+                # band_name = 'esri_world_imagery'
                 band_name = f'{satellite}_{resolution}'
-                out_image_name = f'{location}_{timestamp}_{idx}'
+                out_image_name = f'{location}_{timestamp}_eopatch-{idx:04d}'
 
                 if not os.path.exists(os.path.join(output_dir, band_name)):
                     os.makedirs(os.path.join(output_dir, band_name))
@@ -173,7 +179,7 @@ def main():
 
     for idx in range(0, len(grids_files)):
 
-        grid_sizes_rows, train_wkt_rows = _compose_dataset(grids_files[idx], roads_files[idx], crs_list[idx])
+        grid_sizes_rows, train_wkt_rows = _compose_dataset(output_dir, grids_files[idx], roads_files[idx], crs_list[idx])
 
         grid_sizes.update(grid_sizes_rows)
         train_polygons.update(train_wkt_rows)
@@ -191,7 +197,7 @@ def parse_args():
     parser.add_argument(
         "--grids_files",
         nargs='+',
-        help="Grids files with polygons of the areas downloaded",
+        help="Grids CSV files (in WKT format) with polygons (coordinates in EPSG 4326) of the areas downloaded",
         required=True
     )
     parser.add_argument(
