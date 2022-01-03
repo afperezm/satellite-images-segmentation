@@ -5,10 +5,12 @@ from collections import OrderedDict
 import geopandas as gpd
 import glob
 import os
+import random
 import subprocess
 
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon
+from sklearn.model_selection import train_test_split
 
 
 def _load_roads(roads_shp, roads_crs):
@@ -142,7 +144,9 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs):
     return grid_sizes_rows, train_polys_rows
 
 
-def _save_dataset(output_dir, grid_sizes, train_polygons):
+def _save_dataset(output_dir, grid_sizes, all_wkt_polygons):
+
+    train_wkt_polygons, test_wkt_polygons = train_test_split(list(all_wkt_polygons.values()), shuffle=True)
 
     grid_sizes_csv = os.path.join(output_dir, 'grid_sizes.csv')
     print(f"- Saving grid sizes in CSV format to: {grid_sizes_csv}")
@@ -153,12 +157,21 @@ def _save_dataset(output_dir, grid_sizes, train_polygons):
             writer.writerow({'ImageId': image_id, 'Xmax': x_max, 'Ymin': y_min, 'Xmin': x_min, 'Ymax': y_max})
     print("  Done")
 
-    train_wkt_csv = os.path.join(output_dir, 'train_wkt_v4.csv')
+    train_wkt_csv = os.path.join(output_dir, 'train_wkt.csv')
     print(f"- Saving WKT train polygons in CSV format to: {train_wkt_csv}")
     with open(train_wkt_csv, "wt", encoding="utf-8", newline="") as train_wkt_csv_file:
         writer = csv.DictWriter(train_wkt_csv_file, fieldnames=['ImageId', 'ClassType', 'MultipolygonWKT'])
         writer.writeheader()
-        for image_id, class_type, multipolygon_wkt in list(train_polygons.values()):
+        for image_id, class_type, multipolygon_wkt in train_wkt_polygons:
+            writer.writerow({'ImageId': image_id, 'ClassType': class_type, 'MultipolygonWKT': multipolygon_wkt})
+    print("  Done")
+
+    test_wkt_csv = os.path.join(output_dir, 'test_wkt.csv')
+    print(f"- Saving WKT test polygons in CSV format to: {test_wkt_csv}")
+    with open(test_wkt_csv, "wt", encoding="utf-8", newline="") as test_wkt_csv_file:
+        writer = csv.DictWriter(test_wkt_csv_file, fieldnames=['ImageId', 'ClassType', 'MultipolygonWKT'])
+        writer.writeheader()
+        for image_id, class_type, multipolygon_wkt in test_wkt_polygons:
             writer.writerow({'ImageId': image_id, 'ClassType': class_type, 'MultipolygonWKT': multipolygon_wkt})
     print("  Done")
 
@@ -171,16 +184,16 @@ def main():
 
     assert len(grids_files) == len(roads_files) == len(crs_list)
 
-    grid_sizes, train_polygons = OrderedDict(), OrderedDict()
+    grid_sizes, all_wkt_polygons = OrderedDict(), OrderedDict()
 
     for idx in range(0, len(grids_files)):
 
         grid_sizes_rows, train_wkt_rows = _compose_dataset(output_dir, grids_files[idx], roads_files[idx], crs_list[idx])
 
         grid_sizes.update(grid_sizes_rows)
-        train_polygons.update(train_wkt_rows)
+        all_wkt_polygons.update(train_wkt_rows)
 
-    _save_dataset(output_dir, grid_sizes, train_polygons)
+    _save_dataset(output_dir, grid_sizes, all_wkt_polygons)
 
 
 def parse_args():
