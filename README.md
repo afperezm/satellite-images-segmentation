@@ -103,6 +103,17 @@ python utils/dataset_generate.py --grid_file /home/andresf/data/permafrost-image
 python utils/dataset_generate.py --output_dir /home/andresf/data/permafrost-imagery/ --grids_files /home/andresf/data/permafrost-imagery/yellowknife_nt_canada/grid_wkt.csv --roads_files /home/andresf/data/permafrost-imagery/yellowknife_nt_canada/highways_streets_yellowknife.shp --crs_list epsg:32612
 ```
 
+## Locations in OpenStreetMap
+
+Gillam
+https://www.openstreetmap.org/way/72941007
+
+Mystery Lake
+https://www.openstreetmap.org/relation/2433672
+
+Yellowknife
+https://www.openstreetmap.org/relation/9476822
+
 ## References
 
 [1] https://qgis.org/en/site/forusers/alldownloads.html#debian-ubuntu
