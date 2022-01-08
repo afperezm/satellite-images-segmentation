@@ -10,6 +10,9 @@ from codebase.utils.metrics import binary_accuracy
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
+DEVICE = None
+PARAMS = None
+
 
 def main():
     # https://towardsdatascience.com/from-pytorch-to-pytorch-lightning-a-gentle-introduction-b371b7caaf09
@@ -48,7 +51,7 @@ def main():
 
     # 2. Define a Convolutional Neural Network
 
-    model = resnet18(num_classes=1, num_channels=7)
+    model = resnet18(num_classes=1, num_channels=7).to(DEVICE)
 
     # 3. Define a Loss function and optimizer
 
@@ -82,7 +85,7 @@ def main():
 
             for batch_idx, sample in enumerate(data_loaders[phase]):
                 # Move inputs and labels to GPU
-                inputs, labels = sample['image'], sample['label']
+                inputs, labels = sample['image'].to(DEVICE), sample['label'].to(DEVICE)
 
                 # Cast labels
                 labels = labels.float()
