@@ -47,7 +47,7 @@ def main():
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size,
                                  shuffle=False, num_workers=PARAMS.num_workers)
 
-    data_loaders = {'train': train_dataloader, 'test': test_dataloader}
+    data_loaders = {'train': train_dataloader, 'valid': test_dataloader}
 
     # 2. Define a Convolutional Neural Network
 
@@ -70,7 +70,7 @@ def main():
         print('Epoch {}/{}'.format(epoch + 1, epochs))
         print('-' * 10)
 
-        for phase in ['train', 'val']:
+        for phase in ['train', 'valid']:
 
             # Set model mode
             if phase == 'train':
@@ -127,7 +127,7 @@ def main():
             print(f'Finished {phase}ing - loss: {epoch_loss:.4f} - accuracy: {epoch_accuracy:.4f}')
 
             # Save new better model
-            if phase == 'val' and epoch_accuracy > best_accuracy:
+            if phase == 'valid' and epoch_accuracy > best_accuracy:
                 best_accuracy = epoch_accuracy
                 torch.save({
                     'epoch': epoch,
