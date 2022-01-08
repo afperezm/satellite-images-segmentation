@@ -1,12 +1,13 @@
 import pandas as pd
 
-from codebase.utils.transforms import RandomHorizontalFlip, RandomVerticalFlip, ToTensor
+from codebase.utils.transforms import ToTensor
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from utils.data_utils import ImageData
 
 
 class PermafrostDataset(Dataset):
+
     train_phase = 'train'
     test_phase = 'test'
 
@@ -34,9 +35,6 @@ class PermafrostDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-
-        # TODO Add worker logic for data sharding
-        # https://medium.com/speechmatics/how-to-build-a-streaming-dataloader-with-pytorch-a66dd891d9dd
 
         # Select image key
         img_key = self.images[idx]
@@ -72,8 +70,8 @@ if __name__ == "__main__":
 
     for epoch in range(2):
         print(f"epoch - {epoch}")
-        for batch_idx, sample in enumerate(train_dataloader):
-            images, labels = sample['image'], sample['label']
+        for batch_idx, data in enumerate(train_dataloader):
+            images, labels = data['image'], data['label']
             print(f"batch - {batch_idx}")
             print(images.shape)
             print(images.sum())

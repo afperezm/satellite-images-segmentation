@@ -131,7 +131,9 @@ class Rescale(object):
 
 
 class ToTensor(object):
-    """Convert ndarrays in sample to tensors."""
+    """
+    Convert ndarrays in sample to tensors.
+    """
 
     def __call__(self, sample):
 
@@ -140,5 +142,4 @@ class ToTensor(object):
         # Swap axis to place number of channels in front
         image = np.transpose(image, (2, 0, 1))
 
-        return {'image': torch.from_numpy(image),
-                'label': torch.tensor(label)}
+        return {'image': torch.from_numpy(image), 'label': torch.tensor(label)}
