@@ -12,34 +12,6 @@ CLASSES = {
 }
 
 
-def normalize(bands, lower_percent=0, higher_percent=100):
-    """ Applies min-max normalization with percentiles cropping. """
-
-    # Build array of same size than input bands
-    out = np.zeros_like(bands)
-
-    # Define min and max values
-    a = 0.0
-    b = 1.0
-
-    # Retrieve number of bands or channels
-    num_bands = bands.shape[2]
-
-    for i in range(num_bands):
-        # Compute 5% and 95% percentile values
-        c = np.percentile(bands[:, :, i], lower_percent)
-        d = np.percentile(bands[:, :, i], higher_percent)
-        # Apply min-max normalization
-        t = a + (bands[:, :, i] - c) * (b - a) / (d - c)
-        # Apply threshold for values smaller or higher than the 5% and 95% percentile values
-        t[t < a] = a
-        t[t > b] = b
-        # Save normalized image on the corresponding channel
-        out[:, :, i] = t
-
-    return out.astype(np.float32)
-
-
 def get_all_data(data_dir, ground_truth, grid_sizes):
     """ Load all the training feature and label into memory. """
 

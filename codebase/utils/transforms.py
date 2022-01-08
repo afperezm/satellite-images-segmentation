@@ -73,6 +73,63 @@ class RandomRotation(object):
         return {'image': image, 'label': label}
 
 
+class Normalize(object):
+    """
+    Applies min-max normalization with percentiles cropping.
+    """
+
+    def __init__(self, min_value=0.0, max_value=1.0, lower_percent=0, higher_percent=100):
+
+        self.min_value = min_value
+        self.max_value = max_value
+
+        self.lower_percent = lower_percent
+        self.higher_percent = higher_percent
+
+    def __call__(self, sample):
+
+        image, label = sample['image'], sample['label']
+
+        # Build array of same size than input bands
+        out = np.zeros_like(image)
+
+        # Retrieve number of bands or channels
+        num_bands = image.shape[2]
+
+        for band_idx in range(num_bands):
+            # Compute 5% and 95% percentile values
+            lower_percentile = np.percentile(image[:, :, band_idx], self.lower_percent)
+            higher_percentile = np.percentile(image[:, :, band_idx], self.higher_percent)
+            # Apply min-max normalization
+            t = self.min_value + (image[:, :, band_idx] - lower_percentile) / (higher_percentile - lower_percentile)
+            # Apply new range scaling
+            t = t * (self.max_value - self.min_value)
+            # Apply threshold for values smaller or higher than the 5% and 95% percentile values
+            t[t < self.min_value] = self.min_value
+            t[t > self.max_value] = self.max_value
+            # Save normalized band on the corresponding channel
+            out[:, :, band_idx] = t
+
+        image = out.astype(np.float32)
+
+        return {'image': image, 'label': label}
+
+
+class Rescale(object):
+    """
+    Applies rescaling between -1 and 1.
+    """
+
+    def __call__(self, sample):
+
+        image, label = sample['image'], sample['label']
+
+        # Rescaling
+        image = 2 * image - 1
+
+        return {'image': image, 'label': label}
+
+
 class ToTensor(object):
     """Convert ndarrays in sample to tensors."""
 

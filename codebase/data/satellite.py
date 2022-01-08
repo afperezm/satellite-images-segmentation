@@ -3,7 +3,7 @@ import pandas as pd
 from codebase.utils.transforms import RandomHorizontalFlip, RandomVerticalFlip, ToTensor
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from utils.data_utils import ImageData, normalize
+from utils.data_utils import ImageData
 
 
 class PermafrostDataset(Dataset):
@@ -48,12 +48,6 @@ class PermafrostDataset(Dataset):
 
         # Retrieve feature and label
         image, label = image_data.train_feature, image_data.label
-
-        # Apply normalization
-        image = normalize(image)
-
-        # Rescaling
-        image = 2 * image - 1
 
         # Pick label
         label = label[self.class_id]

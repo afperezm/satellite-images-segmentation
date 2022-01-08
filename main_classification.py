@@ -5,7 +5,8 @@ import torch
 
 from codebase.data.satellite import PermafrostDataset
 from codebase.models.classification import resnet18
-from codebase.utils.transforms import RandomHorizontalFlip, RandomVerticalFlip, RandomRotation, ToTensor
+from codebase.utils.transforms import RandomHorizontalFlip, RandomVerticalFlip, RandomRotation, ToTensor, Normalize, \
+    Rescale
 from codebase.utils.metrics import binary_accuracy
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -27,23 +28,26 @@ def main():
     display_freq = PARAMS.display_freq
 
     # 1. Load and normalize Permafrost dataset
-    transform = transforms.Compose([
-        RandomHorizontalFlip(),
-        RandomVerticalFlip(),
-        RandomRotation(),
-        ToTensor()])
-
+    train_transform = transforms.Compose([RandomHorizontalFlip(),
+                                          RandomVerticalFlip(),
+                                          RandomRotation(),
+                                          Normalize(),
+                                          Rescale(),
+                                          ToTensor()])
     train_dataset = PermafrostDataset(data_dir=data_dir,
                                       class_id=0,
                                       is_train=True,
-                                      transform=transform)
+                                      transform=train_transform)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size,
                                   shuffle=True, num_workers=PARAMS.num_workers)
 
+    test_transform = transforms.Compose([Normalize(),
+                                         Rescale(),
+                                         ToTensor()])
     test_dataset = PermafrostDataset(data_dir=data_dir,
                                      class_id=0,
                                      is_train=False,
-                                     transform=transform)
+                                     transform=test_transform)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size,
                                  shuffle=False, num_workers=PARAMS.num_workers)
 
