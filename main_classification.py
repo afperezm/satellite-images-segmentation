@@ -38,14 +38,14 @@ def main():
                                       is_train=True,
                                       transform=transform)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size,
-                                  shuffle=True, num_workers=1)
+                                  shuffle=True, num_workers=PARAMS.num_workers)
 
     test_dataset = PermafrostDataset(data_dir=data_dir,
                                      class_id=0,
                                      is_train=False,
                                      transform=transform)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size,
-                                 shuffle=False, num_workers=1)
+                                 shuffle=False, num_workers=PARAMS.num_workers)
 
     data_loaders = {'train': train_dataloader, 'test': test_dataloader}
 
@@ -153,6 +153,7 @@ def parse_args():
     parser.add_argument("--scheduler_step", help="Period of learning rate decay", default=10, type=int, required=True)
     parser.add_argument("--checkpoint_dir", help="Summary directory", required=True)
     parser.add_argument("--display_freq", help="Display frequency", default=10, type=int)
+    parser.add_argument("--num_workers", help="Number of dataset workers", default=1, type=int)
 
     return parser.parse_args()
 
