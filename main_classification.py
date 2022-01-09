@@ -18,6 +18,7 @@ PARAMS = None
 def main():
     # https://towardsdatascience.com/from-pytorch-to-pytorch-lightning-a-gentle-introduction-b371b7caaf09
     # https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
+    # https://www.tensorflow.org/tutorials/structured_data/imbalanced_data
 
     data_dir = PARAMS.data_dir
     batch_size = PARAMS.batch_size
