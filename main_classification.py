@@ -128,7 +128,10 @@ def main():
             # Print epoch metrics
             epoch_loss = running_loss / len(data_loaders[phase].dataset)
             epoch_accuracy = running_accuracy / len(data_loaders[phase].dataset)
-            print(f'Finished {phase}ing - loss: {epoch_loss:.4f} - accuracy: {epoch_accuracy:.4f}')
+            if phase == 'train':
+                print(f'Finished training - loss: {epoch_loss:.4f} - accuracy: {epoch_accuracy:.4f}')
+            else:
+                print(f'Finished validation - loss: {epoch_loss:.4f} - accuracy: {epoch_accuracy:.4f}')
 
             # Save new better model
             if phase == 'valid' and epoch_accuracy > best_accuracy:
@@ -138,7 +141,7 @@ def main():
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                 }, f'{checkpoint_dir}/best_dev.pt')
-                print(f"Saved new best validating model with loss {best_accuracy} to: {checkpoint_dir}/best_dev.pt")
+                print(f"Saved new best model with loss {best_accuracy} to: {checkpoint_dir}/best_dev.pt")
 
         print()
 
