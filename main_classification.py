@@ -126,8 +126,8 @@ def main():
                 scheduler.step()
 
             # Print epoch metrics
-            epoch_loss = running_loss / len(train_dataset)
-            epoch_accuracy = running_accuracy / len(train_dataset)
+            epoch_loss = running_loss / len(data_loaders[phase].dataset)
+            epoch_accuracy = running_accuracy / len(data_loaders[phase].dataset)
             print(f'Finished {phase}ing - loss: {epoch_loss:.4f} - accuracy: {epoch_accuracy:.4f}')
 
             # Save new better model
