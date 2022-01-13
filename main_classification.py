@@ -27,6 +27,8 @@ def main():
     scheduler_step = PARAMS.scheduler_step
     checkpoint_dir = PARAMS.checkpoint_dir
     display_freq = PARAMS.display_freq
+    num_workers = PARAMS.num_workers
+    class_id = PARAMS.class_id
 
     # 1. Load and normalize Permafrost dataset
     train_transform = transforms.Compose([RandomHorizontalFlip(),
@@ -36,21 +38,21 @@ def main():
                                           Rescale(),
                                           ToTensor()])
     train_dataset = PermafrostDataset(data_dir=data_dir,
-                                      class_id=0,
+                                      class_id=class_id,
                                       is_train=True,
                                       transform=train_transform)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size,
-                                  shuffle=True, num_workers=PARAMS.num_workers)
+                                  shuffle=True, num_workers=num_workers)
 
     test_transform = transforms.Compose([Normalize(),
                                          Rescale(),
                                          ToTensor()])
     test_dataset = PermafrostDataset(data_dir=data_dir,
-                                     class_id=0,
+                                     class_id=class_id,
                                      is_train=False,
                                      transform=test_transform)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size,
-                                 shuffle=False, num_workers=PARAMS.num_workers)
+                                 shuffle=False, num_workers=num_workers)
 
     data_loaders = {'train': train_dataloader, 'valid': test_dataloader}
 
@@ -162,6 +164,7 @@ def parse_args():
     parser.add_argument("--checkpoint_dir", help="Summary directory", required=True)
     parser.add_argument("--display_freq", help="Display frequency", default=10, type=int)
     parser.add_argument("--num_workers", help="Number of dataset workers", default=1, type=int)
+    parser.add_argument("--class_id", help="Class identifier", default=0, type=int)
 
     return parser.parse_args()
 
