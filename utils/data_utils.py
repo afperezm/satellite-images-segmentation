@@ -8,7 +8,8 @@ from shapely import wkt
 
 
 CLASSES = {
-    1: 'Road'
+    0: 'Road',
+    1: 'Railway'
 }
 
 
@@ -19,7 +20,7 @@ def get_all_data(data_dir, ground_truth, grid_sizes):
 
     train_ids_dict = dict(zip(np.arange(len(all_train_names)), all_train_names))
 
-    img_ids = {0: train_ids_dict[0]}
+    img_ids = {39: train_ids_dict[39]}
 
     features_list = []
     labels_list = []
@@ -213,7 +214,7 @@ class ImageData:
             # # Store binary image
             # labels[..., class_id - 1] = mask
             # Store binary label
-            labels[class_id - 1] = len(polygon_list.geoms) > 0
+            labels[class_id] = len(polygon_list.geoms) > 0
 
         self.label = labels
 
@@ -223,7 +224,7 @@ def main():
     home_dir = os.environ['HOME']
     data_dir = f'{home_dir}/data/permafrost-imagery'
 
-    _df_ground_truth = pd.read_csv(f'{data_dir}/train_wkt_v4.csv',
+    _df_ground_truth = pd.read_csv(f'{data_dir}/train_wkt.csv',
                                    names=['ImageId', 'ClassType', 'MultipolygonWKT'], skiprows=1)
 
     _df_grid_sizes = pd.read_csv(f'{data_dir}/grid_sizes.csv',

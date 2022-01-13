@@ -206,7 +206,7 @@ def main():
                                                            grids_files[idx],
                                                            roads_files[idx],
                                                            crs_list[idx],
-                                                           idx + 1)
+                                                           idx)
 
         grid_sizes.update(grid_sizes_rows)
         all_wkt_polygons.update(train_wkt_rows)
