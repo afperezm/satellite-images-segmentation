@@ -146,7 +146,21 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
 
 def _save_dataset(output_dir, grid_sizes, all_wkt_polygons):
 
-    train_wkt_polygons, test_wkt_polygons = train_test_split(list(all_wkt_polygons.values()), shuffle=True)
+    # train_wkt_polygons, test_wkt_polygons = train_test_split(list(all_wkt_polygons.values()), random_state=42)
+
+    def parse_key(key):
+        print(key)
+        return int(key.split('_')[-1].split('-')[1])
+
+    num_patches = len(set([parse_key(value[0]) for value in all_wkt_polygons.values()]))
+
+    patches_indices = [idx for idx in range(num_patches)]
+    patches_train_indices, patches_test_indices = train_test_split(patches_indices, random_state=42)
+
+    train_wkt_polygons = [value for value in all_wkt_polygons.values() if
+                          parse_key(value[0]) in patches_train_indices]
+    test_wkt_polygons = [value for value in all_wkt_polygons.values() if
+                         parse_key(value[0]) in patches_test_indices]
 
     grid_sizes_csv = os.path.join(output_dir, 'grid_sizes.csv')
     print(f"- Saving grid sizes in CSV format to: {grid_sizes_csv}")
