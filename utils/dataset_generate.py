@@ -39,7 +39,7 @@ def _load_roads(roads_shp, roads_crs):
     return roads_buffered
 
 
-def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs):
+def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
 
     images_dir = output_dir
 
@@ -135,11 +135,11 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs):
                     subprocess.check_call(['gdalwarp', '-te', str(x_min), str(y_min), str(x_max), str(y_max),
                                            image_filename, out_filename], stderr=subprocess.STDOUT)
 
-                if out_image_name not in grid_sizes_rows:
-                    grid_sizes_rows[out_image_name] = (out_image_name, x_min, x_max, y_min, y_max)
+                if f'{out_image_name}_{class_idx}' not in grid_sizes_rows:
+                    grid_sizes_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, x_min, x_max, y_min, y_max)
 
-                if out_image_name not in train_polys_rows:
-                    train_polys_rows[out_image_name] = (out_image_name, 1, roads_clipped_wkt)
+                if f'{out_image_name}_{class_idx}' not in train_polys_rows:
+                    train_polys_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, class_idx, roads_clipped_wkt)
 
     return grid_sizes_rows, train_polys_rows
 
@@ -188,7 +188,11 @@ def main():
 
     for idx in range(0, len(grids_files)):
 
-        grid_sizes_rows, train_wkt_rows = _compose_dataset(output_dir, grids_files[idx], roads_files[idx], crs_list[idx])
+        grid_sizes_rows, train_wkt_rows = _compose_dataset(output_dir,
+                                                           grids_files[idx],
+                                                           roads_files[idx],
+                                                           crs_list[idx],
+                                                           idx + 1)
 
         grid_sizes.update(grid_sizes_rows)
         all_wkt_polygons.update(train_wkt_rows)
