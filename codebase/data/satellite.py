@@ -29,7 +29,7 @@ class PermafrostDataset(Dataset):
         self.grid_sizes = pd.read_csv(f'{data_dir}/grid_sizes.csv',
                                       names=['ImageId', 'Xmax', 'Ymin', 'Xmin', 'Ymax'], skiprows=1)
 
-        self.images = list(self.ground_truth.ImageId.unique())
+        self.images = list(self.ground_truth[self.ground_truth.ClassType == class_id].ImageId)
 
     def __len__(self):
         return len(self.images)
