@@ -169,6 +169,32 @@ class ImageData:
 
         self.train_feature = feature
 
+    def _get_scale_factors(self, img_size, xy_min, xy_max):
+        """ Compute scaling factors. """
+        x_max, y_max = xy_max
+        x_min, y_min = xy_min
+        h, w = img_size
+        w_prime = w * w / (w + 0)
+        h_prime = h * h / (h + 0)
+        return w_prime / (x_max - x_min), h_prime / (y_max - y_min)
+
+    def _convert_coordinates_to_raster(self, coordinates, img_size, xy_min, xy_max):
+        """ Apply scaling factors to a given list of coordinates. """
+        x_min, y_min = xy_min
+        # Obtain scaling factors
+        x_scale_factor, y_scale_factor = self._get_scale_factors(img_size, xy_min, xy_max)
+        # Apply scaling factors
+        coordinates[:, 0] -= x_min
+        coordinates[:, 1] -= y_min
+        coordinates[:, 0] *= x_scale_factor
+        coordinates[:, 1] *= y_scale_factor
+        coordinates[:, 1] *= -1
+        coordinates[:, 1] += img_size[1]
+        # Round and truncate scaled coordinates
+        coordinates_scaled = np.round(coordinates).astype(np.int32)
+
+        return coordinates_scaled
+
     def get_polygon_list(self, image_id, class_type):
         """
         Retrieve list of polygons (in the format of shapely polygon) loaded
@@ -196,25 +222,49 @@ class ImageData:
 
         return x_min, x_max, y_min, y_max
 
+    def _get_and_convert_contours(self, polygon_list, raster_img_size, xy_min, xy_max):
+        """ Convert parsed WKT polygons to contours as perimeter and interior lists of coordinates. """
+        perimeter_list = []
+        interior_list = []
+        if polygon_list is None:
+            return None
+        for polygon_index in range(len(polygon_list)):
+            polygon = polygon_list[polygon_index]
+            perimeter = np.array(list(polygon.exterior.coords))
+            perimeter_coords = self._convert_coordinates_to_raster(perimeter, raster_img_size, xy_min, xy_max)
+            perimeter_list.append(perimeter_coords)
+            for pi in polygon.interiors:
+                interior = np.array(list(pi.coords))
+                interior_coords = self._convert_coordinates_to_raster(interior, raster_img_size, xy_min, xy_max)
+                interior_list.append(interior_coords)
+        return perimeter_list, interior_list
+
+    def _get_mask_from_contours(self, raster_img_size, contours, class_value=1):
+        """ Convert contours to an image by filling perimeters as white and interiors as black. """
+        img_mask = np.zeros(raster_img_size, np.uint8)
+        if contours is None:
+            return img_mask
+        perimeter_list, interior_list = contours
+        cv2.fillPoly(img_mask, perimeter_list, class_value)
+        cv2.fillPoly(img_mask, interior_list, 0)
+        return img_mask
+
     def create_label(self):
         """ Create the class labels. """
         if self.image is None:
             self.load_image()
 
-        # labels = np.zeros(np.append(self.image_size, len(CLASSES)), np.uint8)
-        labels = np.zeros(len(CLASSES), np.uint8)
+        labels = np.zeros(np.append(self.image_size, len(CLASSES)), np.uint8)
 
         for class_id in CLASSES:
             # Get list of polygons
             polygon_list = self.get_polygon_list(self.image_key, class_id)
-            # # Convert obtained list of polygons to contours
-            # contours = get_and_convert_contours(polygon_list, self.image_size, self.xy_min, self.xy_max)
-            # # Convert contours to binary image
-            # mask = get_mask_from_contours(self.image_size, contours, 1)
-            # # Store binary image
-            # labels[..., class_id - 1] = mask
-            # Store binary label
-            labels[class_id] = len(polygon_list.geoms) > 0
+            # Convert obtained list of polygons to contours
+            contours = self._get_and_convert_contours(polygon_list, self.image_size, self.xy_min, self.xy_max)
+            # Convert contours to binary image
+            mask = self._get_mask_from_contours(self.image_size, contours, 1)
+            # Store binary image
+            labels[..., class_id] = mask
 
         self.label = labels
 
