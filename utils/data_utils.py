@@ -228,8 +228,8 @@ class ImageData:
         interior_list = []
         if polygon_list is None:
             return None
-        for polygon_index in range(len(polygon_list)):
-            polygon = polygon_list[polygon_index]
+        for polygon_index in range(len(polygon_list.geoms)):
+            polygon = polygon_list.geoms[polygon_index]
             perimeter = np.array(list(polygon.exterior.coords))
             perimeter_coords = self._convert_coordinates_to_raster(perimeter, raster_img_size, xy_min, xy_max)
             perimeter_list.append(perimeter_coords)
