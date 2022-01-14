@@ -48,7 +48,7 @@ class PermafrostDataset(Dataset):
         image, label = image_data.train_feature, image_data.label
 
         # Pick label
-        label = label[..., self.class_id:self.class_id + 1].sum(axis=(0, 1))
+        label = label[..., self.class_id].sum(axis=(0, 1)) > 0
 
         sample = {'image': image, 'label': label}
 
