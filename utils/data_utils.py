@@ -61,8 +61,8 @@ class ImageData:
         # TODO Make generic
         self.three_band_image = None
         self.ten_meters_band_image = None
-        self.twenty_meters_band_image = None
-        self.sixty_meters_band_image = None
+        # self.twenty_meters_band_image = None
+        # self.sixty_meters_band_image = None
         self.image = None
         self.image_size = image_size
         self.xy_min = None
@@ -75,7 +75,7 @@ class ImageData:
         """ Returns the paths for all images. """
         return {
             '10': '{}/S2_10m/{}.tif'.format(self.images_dir, self.image_key),
-            '20': '{}/S2_20m/{}.tif'.format(self.images_dir, self.image_key)
+            # '20': '{}/S2_20m/{}.tif'.format(self.images_dir, self.image_key)
         }
 
     # TODO Make generic
@@ -93,10 +93,10 @@ class ImageData:
             [height, width] = (self.image_size, self.image_size)
 
             im10 = images['10']
-            im20 = images['20']
+            # im20 = images['20']
 
             images['10'] = cv2.resize(im10, (width, height), interpolation=cv2.INTER_CUBIC)
-            images['20'] = cv2.resize(im20, (width, height), interpolation=cv2.INTER_CUBIC)
+            # images['20'] = cv2.resize(im20, (width, height), interpolation=cv2.INTER_CUBIC)
 
         return images
 
@@ -107,11 +107,11 @@ class ImageData:
         images = self.read_image()
 
         im10 = images['10']
-        im20 = images['20']
+        # im20 = images['20']
 
-        # im20 = np.expand_dims(im20, axis=2)
+        # im = np.concatenate((im10, im20), axis=-1)
 
-        im = np.concatenate((im10, im20), axis=-1)
+        im = im10
 
         return im
 
@@ -125,7 +125,7 @@ class ImageData:
         self.image_size = np.shape(self.image)[0:2]
 
         self.ten_meters_band_image = self.image[..., 0:4]
-        self.twenty_meters_band_image = self.image[..., 4:6]
+        # self.twenty_meters_band_image = self.image[..., 4:6]
 
         # Retrieve image limits
         x_min, x_max, y_min, y_max = self.get_limits(self.image_key)
