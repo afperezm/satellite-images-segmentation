@@ -48,7 +48,7 @@ class PermafrostDataset(Dataset):
         image, label = image_data.train_feature, image_data.label
 
         # Pick label
-        label = label[..., self.class_id].sum(axis=(0, 1)) > 0
+        label = label[..., self.class_id].sum(axis=(0, 1)) / (label.shape[0] * label.shape[1]) > 0.05
 
         sample = {'image': image, 'label': label}
 
