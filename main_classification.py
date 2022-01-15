@@ -6,7 +6,7 @@ import torch
 from codebase.data.satellite import PermafrostDataset
 from codebase.models.classification import resnet18
 from codebase.utils.transforms import RandomHorizontalFlip, RandomVerticalFlip, RandomRotation, ToTensor, Normalize, \
-    Rescale
+    Rescale, AggregateLabel
 from codebase.utils.metrics import binary_accuracy
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -35,6 +35,7 @@ def main():
                                           RandomVerticalFlip(),
                                           RandomRotation(),
                                           Normalize(),
+                                          AggregateLabel(),
                                           Rescale(),
                                           ToTensor()])
     train_dataset = PermafrostDataset(data_dir=data_dir,
@@ -45,6 +46,7 @@ def main():
                                   shuffle=True, num_workers=num_workers)
 
     test_transform = transforms.Compose([Normalize(),
+                                         AggregateLabel(),
                                          Rescale(),
                                          ToTensor()])
     test_dataset = PermafrostDataset(data_dir=data_dir,

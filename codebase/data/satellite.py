@@ -1,6 +1,6 @@
 import pandas as pd
 
-from codebase.utils.transforms import ToTensor
+from codebase.utils.transforms import ToTensor, AggregateLabel
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from utils.data_utils import ImageData
@@ -48,7 +48,7 @@ class PermafrostDataset(Dataset):
         image, label = image_data.train_feature, image_data.label
 
         # Pick label
-        label = label[..., self.class_id].sum(axis=(0, 1)) > 0
+        label = label[..., self.class_id]
 
         sample = {'image': image, 'label': label}
 
@@ -64,6 +64,7 @@ if __name__ == "__main__":
                                       class_id=0,
                                       is_train=False,
                                       transform=transforms.Compose([
+                                          AggregateLabel(),
                                           ToTensor()
                                       ]))
     train_dataloader = DataLoader(train_dataset, batch_size=4)

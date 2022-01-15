@@ -73,6 +73,20 @@ class RandomRotation(object):
         return {'image': image, 'label': label}
 
 
+class AggregateLabel(object):
+    """
+    Sum label pixels across width and height dimensions and thresholds the result.
+    """
+
+    def __call__(self, sample):
+
+        image, label = sample['image'], sample['label']
+
+        label = label.sum(axis=(0, 1)) > 0
+
+        return {'image': image, 'label': label}
+
+
 class Normalize(object):
     """
     Applies min-max normalization with percentiles cropping.
