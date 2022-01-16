@@ -6,12 +6,92 @@ import gdal
 import geopandas as gpd
 import glob
 import os
-import random
 import subprocess
 
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon
 from sklearn.model_selection import train_test_split
+
+def _compose_one(idx, polygon_str, image_filename, output_dir, roads_buffered, class_idx):
+
+    grid_sizes_rows = OrderedDict()
+    train_polys_rows = OrderedDict()
+
+    band_name = os.path.basename(os.path.dirname(image_filename))
+
+    if band_name == 'S2_20m':
+        return grid_sizes_rows, train_polys_rows
+
+    # Load polygons in WKT format from string
+    polygon_wkt = wkt.loads(polygon_str)
+
+    # Retrieve tile corners
+    top_left = (polygon_wkt.exterior.xy[0][3], polygon_wkt.exterior.xy[1][3])
+    top_right = (polygon_wkt.exterior.xy[0][2], polygon_wkt.exterior.xy[1][2])
+    bottom_right = (polygon_wkt.exterior.xy[0][1], polygon_wkt.exterior.xy[1][1])
+    bottom_left = (polygon_wkt.exterior.xy[0][0], polygon_wkt.exterior.xy[1][0])
+
+    # Compute limits
+    x_min = min(top_left[0], bottom_left[0], top_right[0], bottom_right[0])
+    x_max = max(top_left[0], bottom_left[0], top_right[0], bottom_right[0])
+    y_min = min(top_left[1], bottom_left[1], top_right[1], bottom_right[1])
+    y_max = max(top_left[1], bottom_left[1], top_right[1], bottom_right[1])
+
+    # Compose shapely polygon for the current grid tile
+    grid_polygon = Polygon([[x_min, y_max], [x_max, y_max], [x_max, y_min], [x_min, y_min]])
+
+    image = gdal.Open(image_filename)
+
+    image_gt = image.GetGeoTransform()
+    image_width = image.RasterXSize
+    image_height = image.RasterYSize
+
+    xmin = image_gt[0]
+    xmax = image_gt[0] + image_width * image_gt[1]
+    ymin = image_gt[3] + image_height * image_gt[5]
+    ymax = image_gt[3]
+
+    image_polygon = Polygon([[xmin, ymax], [xmax, ymax], [xmax, ymin], [xmin, ymin]])
+
+    if grid_polygon.intersection(image_polygon).area == 0.0:
+        return grid_sizes_rows, train_polys_rows
+
+    # Clip roads by grid polygon
+    roads_clipped = gpd.clip(roads_buffered, grid_polygon)
+
+    if roads_clipped.empty:
+        roads_clipped_wkt = MultiPolygon([roads_clipped.any()]).wkt
+    elif roads_clipped.geom_type[0] == 'Polygon':
+        roads_clipped_wkt = MultiPolygon([roads_clipped.all()]).wkt
+    elif roads_clipped.geom_type[0] == 'MultiPolygon':
+        roads_clipped_wkt = MultiPolygon(roads_clipped.all()).wkt
+    else:
+        raise ValueError('Unknown geometry type')
+
+    image_basename = os.path.splitext(os.path.basename(image_filename))[0]
+    out_image_name = f'{image_basename}-{idx:04d}'
+
+    if not os.path.exists(os.path.join(output_dir, band_name)):
+        os.makedirs(os.path.join(output_dir, band_name))
+
+    out_filename = os.path.join(output_dir, band_name, f'{out_image_name}.tif')
+
+    print(f'- Clipping image {image_basename} around grid polygon {idx:04d}')
+
+    # Clip image around grid polygon
+    if not os.path.exists(out_filename):
+        subprocess.check_call(['gdalwarp', '-te', str(x_min), str(y_min), str(x_max), str(y_max),
+                               image_filename, out_filename], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+    print('  Done')
+
+    if f'{out_image_name}_{class_idx}' not in grid_sizes_rows:
+        grid_sizes_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, x_min, x_max, y_min, y_max)
+
+    if f'{out_image_name}_{class_idx}' not in train_polys_rows:
+        train_polys_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, class_idx, roads_clipped_wkt)
+
+    return grid_sizes_rows, train_polys_rows
 
 
 def _load_roads(roads_shp, roads_crs):
@@ -53,6 +133,9 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
     # Find raster images
     images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')))
 
+    # Build list of polygon indices and strings
+    polygons = []
+
     with open(grid_csv, "rt", encoding="utf-8", newline="") as grid_csv_file:
         # Init CSV reader
         reader = csv.DictReader(grid_csv_file, fieldnames=['Id', 'PolygonWkt'])
@@ -63,88 +146,21 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
         # Loop over all CSV rows
         for idx, row in enumerate(reader):
 
-            print(f'- Loading grid cell {idx}')
-
             # Retrieve polygon string in WKT format
             polygon_str = row['PolygonWkt']
 
-            # Load polygons in WKT format from string
-            polygon_wkt = wkt.loads(polygon_str)
+            # Append polygon string to list
+            polygons.append((idx, polygon_str))
 
-            print('  Done')
-
-            # Retrieve tile corners
-            top_left = (polygon_wkt.exterior.xy[0][3], polygon_wkt.exterior.xy[1][3])
-            top_right = (polygon_wkt.exterior.xy[0][2], polygon_wkt.exterior.xy[1][2])
-            bottom_right = (polygon_wkt.exterior.xy[0][1], polygon_wkt.exterior.xy[1][1])
-            bottom_left = (polygon_wkt.exterior.xy[0][0], polygon_wkt.exterior.xy[1][0])
-
-            # Compute limits
-            x_min = min(top_left[0], bottom_left[0], top_right[0], bottom_right[0])
-            x_max = max(top_left[0], bottom_left[0], top_right[0], bottom_right[0])
-            y_min = min(top_left[1], bottom_left[1], top_right[1], bottom_right[1])
-            y_max = max(top_left[1], bottom_left[1], top_right[1], bottom_right[1])
-
-            print(f'- Clipping roads for grid cell {idx}')
-
-            # Compose shapely polygon for the current grid tile
-            grid_polygon = Polygon([[x_min, y_max], [x_max, y_max], [x_max, y_min], [x_min, y_min]])
-
-            # Clip roads by grid polygon
-            roads_clipped = gpd.clip(roads_buffered, grid_polygon)
-
-            print(f"  Done, got {len(roads_clipped)} features")
-
-            if roads_clipped.empty:
-                roads_clipped_wkt = MultiPolygon([roads_clipped.any()]).wkt
-            elif roads_clipped.geom_type[0] == 'Polygon':
-                roads_clipped_wkt = MultiPolygon([roads_clipped.all()]).wkt
-            elif roads_clipped.geom_type[0] == 'MultiPolygon':
-                roads_clipped_wkt = MultiPolygon(roads_clipped.all()).wkt
-            else:
-                raise ValueError('Unknown geometry type')
-
-            for image_filename in images:
-
-                band_name = os.path.basename(os.path.dirname(image_filename))
-
-                if band_name == 'S2_20m':
-                    continue
-
-                image = gdal.Open(image_filename)
-
-                image_gt = image.GetGeoTransform()
-                image_width = image.RasterXSize
-                image_height = image.RasterYSize
-
-                xmin = image_gt[0]
-                xmax = image_gt[0] + image_width * image_gt[1]
-                ymin = image_gt[3] + image_height * image_gt[5]
-                ymax = image_gt[3]
-
-                image_polygon = Polygon([[xmin, ymax], [xmax, ymax], [xmax, ymin], [xmin, ymin]])
-
-                if grid_polygon.intersection(image_polygon).area == 0.0:
-                    continue
-
-                image_name = os.path.splitext(os.path.basename(image_filename))[0]
-                out_image_name = f'{image_name}-{idx:04d}'
-
-                if not os.path.exists(os.path.join(output_dir, band_name)):
-                    os.makedirs(os.path.join(output_dir, band_name))
-
-                out_filename = os.path.join(output_dir, band_name, f'{out_image_name}.tif')
-
-                # Clip image around grid polygon
-                if not os.path.exists(out_filename):
-                    subprocess.check_call(['gdalwarp', '-te', str(x_min), str(y_min), str(x_max), str(y_max),
-                                           image_filename, out_filename], stderr=subprocess.STDOUT)
-
-                if f'{out_image_name}_{class_idx}' not in grid_sizes_rows:
-                    grid_sizes_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, x_min, x_max, y_min, y_max)
-
-                if f'{out_image_name}_{class_idx}' not in train_polys_rows:
-                    train_polys_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, class_idx, roads_clipped_wkt)
+    for polygon, image in [(p, i) for p in polygons for i in images]:
+        grid_size_row, ground_truth_row = _compose_one(polygon[0],
+                                                       polygon[1],
+                                                       image,
+                                                       output_dir,
+                                                       roads_buffered,
+                                                       class_idx)
+        grid_sizes_rows.update(grid_size_row)
+        train_polys_rows.update(ground_truth_row)
 
     return grid_sizes_rows, train_polys_rows
 
