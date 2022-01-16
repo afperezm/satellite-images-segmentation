@@ -2,6 +2,7 @@ import argparse
 import csv
 from collections import OrderedDict
 
+import gdal
 import geopandas as gpd
 import glob
 import os
@@ -101,29 +102,30 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
                 raise ValueError('Unknown geometry type')
 
             # Find raster images for the give grid tile
-            images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-{idx:04d}.tif')))
+            images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')))
 
             for image_filename in images:
 
+                image = gdal.Open(image_filename)
+
+                image_gt = image.GetGeoTransform()
+                image_width = image.RasterXSize
+                image_height = image.RasterYSize
+
+                xmin = image_gt[0]
+                xmax = image_gt[0] + image_width * image_gt[1]
+                ymin = image_gt[3] + image_height * image_gt[5]
+                ymax = image_gt[3]
+
+                image_polygon = Polygon([[xmin, ymax], [xmax, ymax], [xmax, ymin], [xmin, ymin]])
+
+                if grid_polygon.intersection(image_polygon).area == 0.0:
+                    continue
+
                 image_name = os.path.splitext(os.path.basename(image_filename))[0]
 
-                location = '_'.join(image_name.split('_')[0:3])
-                timestamp = image_name.split('_')[3]
-                satellite = os.path.basename(os.path.dirname(image_filename)).split('_')[0]
-                resolution = os.path.basename(os.path.dirname(image_filename)).split('_')[1]
-
-                # if timestamp not in ['2021-01-28-17-48-11', '2021-01-26-17-58-29', '2021-01-30-19-16-58']:
-                #     continue
-                # if timestamp not in ['2021-06-14-17-38-13']:  # Gillam MB Canada
-                #     continue
-                # if timestamp not in ['2021-06-27-17-48-33']:  # Thompson MB Canada
-                #     continue
-                # if timestamp not in ['2021-06-29-19-16-59']:  # Yellowknife MB Canada
-                #     continue
-
-                # band_name = 'esri_world_imagery'
-                band_name = f'{satellite}_{resolution}'
-                out_image_name = f'{location}_{timestamp}_eopatch-{idx:04d}'
+                band_name = os.path.basename(os.path.dirname(image_filename))
+                out_image_name = f'{image_name}-{idx:04d}'
 
                 if not os.path.exists(os.path.join(output_dir, band_name)):
                     os.makedirs(os.path.join(output_dir, band_name))
