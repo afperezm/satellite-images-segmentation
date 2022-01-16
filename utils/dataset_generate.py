@@ -50,6 +50,9 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
     # Load roads shape
     roads_buffered = _load_roads(roads_shp, epsg_crs)
 
+    # Find raster images
+    images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')))
+
     with open(grid_csv, "rt", encoding="utf-8", newline="") as grid_csv_file:
         # Init CSV reader
         reader = csv.DictReader(grid_csv_file, fieldnames=['Id', 'PolygonWkt'])
@@ -100,9 +103,6 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
                 roads_clipped_wkt = MultiPolygon(roads_clipped.all()).wkt
             else:
                 raise ValueError('Unknown geometry type')
-
-            # Find raster images for the give grid tile
-            images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')))
 
             for image_filename in images:
 
