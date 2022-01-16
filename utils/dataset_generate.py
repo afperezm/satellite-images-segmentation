@@ -106,6 +106,11 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
 
             for image_filename in images:
 
+                band_name = os.path.basename(os.path.dirname(image_filename))
+
+                if band_name == 'S2_20m':
+                    continue
+
                 image = gdal.Open(image_filename)
 
                 image_gt = image.GetGeoTransform()
@@ -123,8 +128,6 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
                     continue
 
                 image_name = os.path.splitext(os.path.basename(image_filename))[0]
-
-                band_name = os.path.basename(os.path.dirname(image_filename))
                 out_image_name = f'{image_name}-{idx:04d}'
 
                 if not os.path.exists(os.path.join(output_dir, band_name)):
