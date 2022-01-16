@@ -41,7 +41,7 @@ def _load_roads(roads_shp, roads_crs):
 
 def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
 
-    images_dir = output_dir
+    images_dir = os.path.dirname(grid_csv)
 
     grid_sizes_rows = OrderedDict()
     train_polys_rows = OrderedDict()
