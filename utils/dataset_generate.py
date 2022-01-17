@@ -12,7 +12,7 @@ from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon
 from sklearn.model_selection import train_test_split
 
-def _compose_one(idx, polygon_str, image_filename, output_dir, roads_buffered, class_idx):
+def _compose_one(cell_idx, polygon_str, image_filename, output_dir, roads_buffered, class_idx):
 
     grid_sizes_rows = OrderedDict()
     train_polys_rows = OrderedDict()
@@ -69,14 +69,14 @@ def _compose_one(idx, polygon_str, image_filename, output_dir, roads_buffered, c
         raise ValueError('Unknown geometry type')
 
     image_basename = os.path.splitext(os.path.basename(image_filename))[0]
-    out_image_name = f'{image_basename}-{idx:04d}'
+    out_image_name = f'{image_basename}-{cell_idx:04d}'
 
     if not os.path.exists(os.path.join(output_dir, band_name)):
         os.makedirs(os.path.join(output_dir, band_name))
 
     out_filename = os.path.join(output_dir, band_name, f'{out_image_name}.tif')
 
-    print(f'- Clipping image {image_basename} around grid polygon {idx:04d}')
+    print(f'- Clipping image {image_basename} around grid polygon {cell_idx:04d}')
 
     # Clip image around grid polygon
     if not os.path.exists(out_filename):
@@ -125,15 +125,15 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
     images_dir = os.path.dirname(grid_csv)
 
     grid_sizes_rows = OrderedDict()
-    train_polys_rows = OrderedDict()
+    ground_truth_rows = OrderedDict()
 
     # Load roads shape
     roads_buffered = _load_roads(roads_shp, epsg_crs)
 
-    # Find raster images
+    # Lookup list of images
     images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')))
 
-    # Build list of polygon indices and strings
+    # Build list of polygons
     polygons = []
 
     with open(grid_csv, "rt", encoding="utf-8", newline="") as grid_csv_file:
@@ -144,13 +144,13 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
         next(reader)
 
         # Loop over all CSV rows
-        for idx, row in enumerate(reader):
+        for row_idx, row in enumerate(reader):
 
             # Retrieve polygon string in WKT format
             polygon_str = row['PolygonWkt']
 
             # Append polygon string to list
-            polygons.append((idx, polygon_str))
+            polygons.append((row_idx, polygon_str))
 
     for polygon, image in [(p, i) for p in polygons for i in images]:
         grid_size_row, ground_truth_row = _compose_one(polygon[0],
@@ -160,9 +160,9 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
                                                        roads_buffered,
                                                        class_idx)
         grid_sizes_rows.update(grid_size_row)
-        train_polys_rows.update(ground_truth_row)
+        ground_truth_rows.update(ground_truth_row)
 
-    return grid_sizes_rows, train_polys_rows
+    return grid_sizes_rows, ground_truth_rows
 
 
 def _save_dataset(output_dir, grid_sizes, all_wkt_polygons):
@@ -219,20 +219,19 @@ def main():
 
     assert len(grids_files) == len(roads_files) == len(crs_list)
 
-    grid_sizes, all_wkt_polygons = OrderedDict(), OrderedDict()
+    grid_sizes, ground_truth_polygons = OrderedDict(), OrderedDict()
 
     for idx in range(0, len(grids_files)):
-
-        grid_sizes_rows, train_wkt_rows = _compose_dataset(output_dir,
-                                                           grids_files[idx],
-                                                           roads_files[idx],
-                                                           crs_list[idx],
-                                                           idx)
+        grid_sizes_rows, ground_truth_rows = _compose_dataset(output_dir,
+                                                              grids_files[idx],
+                                                              roads_files[idx],
+                                                              crs_list[idx],
+                                                              idx)
 
         grid_sizes.update(grid_sizes_rows)
-        all_wkt_polygons.update(train_wkt_rows)
+        ground_truth_polygons.update(ground_truth_rows)
 
-    _save_dataset(output_dir, grid_sizes, all_wkt_polygons)
+    _save_dataset(output_dir, grid_sizes, ground_truth_polygons)
 
 
 def parse_args():
