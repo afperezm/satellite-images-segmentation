@@ -12,7 +12,12 @@ from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon
 from sklearn.model_selection import train_test_split
 
-def _compose_one(cell_idx, polygon_str, image_filename, output_dir, roads_buffered, class_idx):
+ROADS_BUFFERED = None
+OUTPUT_DIR = None
+CLASS_IDX = None
+
+
+def _compose_one(cell_idx, polygon_str, image_filename):
 
     grid_sizes_rows = OrderedDict()
     train_polys_rows = OrderedDict()
@@ -57,7 +62,7 @@ def _compose_one(cell_idx, polygon_str, image_filename, output_dir, roads_buffer
         return grid_sizes_rows, train_polys_rows
 
     # Clip roads by grid polygon
-    roads_clipped = gpd.clip(roads_buffered, grid_polygon)
+    roads_clipped = gpd.clip(ROADS_BUFFERED, grid_polygon)
 
     if roads_clipped.empty:
         roads_clipped_wkt = MultiPolygon([roads_clipped.any()]).wkt
@@ -71,10 +76,10 @@ def _compose_one(cell_idx, polygon_str, image_filename, output_dir, roads_buffer
     image_basename = os.path.splitext(os.path.basename(image_filename))[0]
     out_image_name = f'{image_basename}-{cell_idx:04d}'
 
-    if not os.path.exists(os.path.join(output_dir, band_name)):
-        os.makedirs(os.path.join(output_dir, band_name))
+    if not os.path.exists(os.path.join(OUTPUT_DIR, band_name)):
+        os.makedirs(os.path.join(OUTPUT_DIR, band_name))
 
-    out_filename = os.path.join(output_dir, band_name, f'{out_image_name}.tif')
+    out_filename = os.path.join(OUTPUT_DIR, band_name, f'{out_image_name}.tif')
 
     print(f'- Clipping image {image_basename} around grid polygon {cell_idx:04d}')
 
@@ -85,11 +90,11 @@ def _compose_one(cell_idx, polygon_str, image_filename, output_dir, roads_buffer
 
     print('  Done')
 
-    if f'{out_image_name}_{class_idx}' not in grid_sizes_rows:
-        grid_sizes_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, x_min, x_max, y_min, y_max)
+    if f'{out_image_name}_{CLASS_IDX}' not in grid_sizes_rows:
+        grid_sizes_rows[f'{out_image_name}_{CLASS_IDX}'] = (out_image_name, x_min, x_max, y_min, y_max)
 
-    if f'{out_image_name}_{class_idx}' not in train_polys_rows:
-        train_polys_rows[f'{out_image_name}_{class_idx}'] = (out_image_name, class_idx, roads_clipped_wkt)
+    if f'{out_image_name}_{CLASS_IDX}' not in train_polys_rows:
+        train_polys_rows[f'{out_image_name}_{CLASS_IDX}'] = (out_image_name, CLASS_IDX, roads_clipped_wkt)
 
     return grid_sizes_rows, train_polys_rows
 
@@ -122,13 +127,20 @@ def _load_roads(roads_shp, roads_crs):
 
 def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
 
+    global ROADS_BUFFERED
+    global OUTPUT_DIR
+    global CLASS_IDX
+
+    OUTPUT_DIR = output_dir
+    CLASS_IDX = class_idx
+
     images_dir = os.path.dirname(grid_csv)
 
     grid_sizes_rows = OrderedDict()
     ground_truth_rows = OrderedDict()
 
     # Load roads shape
-    roads_buffered = _load_roads(roads_shp, epsg_crs)
+    ROADS_BUFFERED = _load_roads(roads_shp, epsg_crs)
 
     # Lookup list of images
     images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')))
@@ -155,10 +167,7 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
     for polygon, image in [(p, i) for p in polygons for i in images]:
         grid_size_row, ground_truth_row = _compose_one(polygon[0],
                                                        polygon[1],
-                                                       image,
-                                                       output_dir,
-                                                       roads_buffered,
-                                                       class_idx)
+                                                       image)
         grid_sizes_rows.update(grid_size_row)
         ground_truth_rows.update(ground_truth_row)
 
