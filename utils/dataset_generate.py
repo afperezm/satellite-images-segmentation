@@ -40,8 +40,8 @@ def _compose_one(polygon_image_pair):
 
     band_name = os.path.basename(os.path.dirname(image_filename))
 
-    if band_name == 'S2_20m':
-        return grid_sizes_rows, train_polys_rows
+    # if band_name == 'S2_20m':
+    #     return grid_sizes_rows, train_polys_rows
 
     # Load polygons in WKT format from string
     polygon_wkt = wkt.loads(polygon_str)
