@@ -6,8 +6,10 @@ import gdal
 import geopandas as gpd
 import glob
 import os
+import progressbar
 import subprocess
 
+from multiprocessing import Pool
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon
 from sklearn.model_selection import train_test_split
@@ -17,7 +19,21 @@ OUTPUT_DIR = None
 CLASS_IDX = None
 
 
-def _compose_one(cell_idx, polygon_str, image_filename):
+def init_worker(roads_buffered=None, output_dir=None, class_idx=None):
+    global ROADS_BUFFERED  # pylint: disable=global-statement
+    global OUTPUT_DIR  # pylint: disable=global-statement
+    global CLASS_IDX  # pylint: disable=global-statement
+    ROADS_BUFFERED = roads_buffered
+    OUTPUT_DIR = output_dir
+    CLASS_IDX = class_idx
+
+
+def _compose_one(polygon_image_pair):
+
+    image_filename, polygon = polygon_image_pair
+
+    cell_idx = polygon[0]
+    polygon_str = polygon[1]
 
     grid_sizes_rows = OrderedDict()
     train_polys_rows = OrderedDict()
@@ -125,14 +141,7 @@ def _load_roads(roads_shp, roads_crs):
     return roads_buffered
 
 
-def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
-
-    global ROADS_BUFFERED
-    global OUTPUT_DIR
-    global CLASS_IDX
-
-    OUTPUT_DIR = output_dir
-    CLASS_IDX = class_idx
+def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx, num_workers):
 
     images_dir = os.path.dirname(grid_csv)
 
@@ -140,7 +149,7 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
     ground_truth_rows = OrderedDict()
 
     # Load roads shape
-    ROADS_BUFFERED = _load_roads(roads_shp, epsg_crs)
+    roads_buffered = _load_roads(roads_shp, epsg_crs)
 
     def parse_image_filename(image_filename):
         image_basename = os.path.splitext(os.path.basename(image_filename))[0]
@@ -168,12 +177,20 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
             # Append polygon string to list
             polygons.append((row_idx, polygon_str))
 
-    for polygon, image in [(p, i) for p in polygons for i in images]:
-        grid_size_row, ground_truth_row = _compose_one(polygon[0],
-                                                       polygon[1],
-                                                       image)
+    polygon_image_pairs = [(i, p) for i in images for p in polygons]
+    num_polygon_image_pairs = len(polygon_image_pairs)
+
+    pool = Pool(initializer=init_worker, initargs=(roads_buffered, output_dir, class_idx), processes=num_workers)
+    bar = progressbar.ProgressBar(max_value=num_polygon_image_pairs)
+    for idx, processed in enumerate(pool.imap_unordered(_compose_one, polygon_image_pairs), start=1):
+        grid_size_row = processed[0]
+        ground_truth_row = processed[1]
         grid_sizes_rows.update(grid_size_row)
         ground_truth_rows.update(ground_truth_row)
+        bar.update(idx)
+    bar.update(num_polygon_image_pairs)
+    pool.close()
+    pool.join()
 
     return grid_sizes_rows, ground_truth_rows
 
@@ -229,6 +246,7 @@ def main():
     grids_files = PARAMS.grids_files
     roads_files = PARAMS.roads_files
     crs_list = PARAMS.crs_list
+    num_workers = PARAMS.num_workers
 
     assert len(grids_files) == len(roads_files) == len(crs_list)
 
@@ -239,7 +257,8 @@ def main():
                                                               grids_files[idx],
                                                               roads_files[idx],
                                                               crs_list[idx],
-                                                              idx)
+                                                              idx,
+                                                              num_workers)
 
         grid_sizes.update(grid_sizes_rows)
         ground_truth_polygons.update(ground_truth_rows)
@@ -272,6 +291,11 @@ def parse_args():
         help="Output coordinate reference systems to use",
         default="epsg:3978"
     )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        help="Number of parallel processes to launch.",
+        default=4)
     return parser.parse_args()
 
 
