@@ -142,8 +142,12 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx):
     # Load roads shape
     ROADS_BUFFERED = _load_roads(roads_shp, epsg_crs)
 
+    def parse_image_filename(image_filename):
+        image_basename = os.path.splitext(os.path.basename(image_filename))[0]
+        return int(image_basename.split('_')[-1].split('-')[-1])
+
     # Lookup list of images
-    images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')))
+    images = sorted(glob.glob(os.path.join(images_dir, '**', f'*_eopatch-*.tif')), key=parse_image_filename)
 
     # Build list of polygons
     polygons = []
