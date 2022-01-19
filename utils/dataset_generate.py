@@ -97,14 +97,14 @@ def _compose_one(polygon_image_pair):
 
     out_filename = os.path.join(OUTPUT_DIR, band_name, f'{out_image_name}.tif')
 
-    print(f'- Clipping image {image_basename} around grid polygon {cell_idx:04d}')
+    # print(f'- Clipping image {image_basename} around grid polygon {cell_idx:04d}')
 
     # Clip image around grid polygon
     if not os.path.exists(out_filename):
         subprocess.check_call(['gdalwarp', '-te', str(x_min), str(y_min), str(x_max), str(y_max),
                                image_filename, out_filename], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-    print('  Done')
+    # print('  Done')
 
     if f'{out_image_name}_{CLASS_IDX}' not in grid_sizes_rows:
         grid_sizes_rows[f'{out_image_name}_{CLASS_IDX}'] = (out_image_name, x_min, x_max, y_min, y_max)
