@@ -13,7 +13,7 @@ FIELDNAMES = ['Id', 'PolygonWkt']
 PARAMS = None
 
 
-def _create_and_save_grid(aoi_geojson, grid_step_size, output_dir, crs):
+def _create_and_save_grid(aoi_geojson, grid_step_size, x_scale, y_scale, output_dir, crs):
 
     # TODO Use location name to retrieve geometry from OSM instead of processing a GeoJSON
     # location = location.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation)))
@@ -33,6 +33,8 @@ def _create_and_save_grid(aoi_geojson, grid_step_size, output_dir, crs):
     # Load area of interest GeoJSON adn split into smaller bounding boxes
     aoi = gpd.read_file(aoi_geojson)
     aoi = aoi.to_crs(crs)
+    print(x_scale, y_scale)
+    aoi = aoi.scale(x_scale, y_scale)
     aoi = aoi.buffer(500)
 
     print("- Splitting area of interest into small bounding boxes of {} km2".format(grid_step_size / 1000))
@@ -93,9 +95,11 @@ def main():
     output_dir = PARAMS.output_dir
     aoi_file = PARAMS.aoi_file
     grid_step_size = PARAMS.step_size  # Defaults to 5 km
+    x_factor = PARAMS.x_factor
+    y_factor = PARAMS.y_factor
     crs = PARAMS.crs  # Defaults to EPSG 3978
 
-    _create_and_save_grid(aoi_file, grid_step_size, output_dir, crs)
+    _create_and_save_grid(aoi_file, grid_step_size, x_factor, y_factor, output_dir, crs)
 
 
 def parse_args():
@@ -115,6 +119,18 @@ def parse_args():
         type=int,
         help="Bounding boxes size (in meters)",
         default=5000
+    )
+    parser.add_argument(
+        "--x_factor",
+        type=float,
+        help="Horizontal scale factor",
+        default=1.0
+    )
+    parser.add_argument(
+        "--y_factor",
+        type=float,
+        help="Vertical scale factor",
+        default=1.0
     )
     parser.add_argument(
         "--crs",
