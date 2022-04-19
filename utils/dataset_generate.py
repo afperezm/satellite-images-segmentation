@@ -134,7 +134,7 @@ def _load_roads(roads_shp, roads_crs):
 
     print("- Creating buffer around roads")
 
-    roads_buffered = roads_dissolved.buffer(10)
+    roads_buffered = roads_dissolved.buffer(5)
 
     print(f"  Done, got {len(roads_buffered)} features of type {roads_buffered.geom_type[0]}")
 
