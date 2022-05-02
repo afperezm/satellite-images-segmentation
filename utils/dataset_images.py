@@ -34,6 +34,10 @@ def _convert_one(img_key):
     masks = OrderedDict()
 
     if os.path.exists(f'{DATA_DIR}/{PHASE}/{img_key}_sat.jpg'):
+
+        images[img_key] = f'{DATA_DIR}/{PHASE}/{img_key}_sat.jpg'
+        masks[img_key] = f'{DATA_DIR}/{PHASE}/{img_key}_mask.png'
+
         return images, masks
 
     transform = transforms.Compose([Normalize(min_value=0.0, max_value=255.0, lower_percent=1, higher_percent=99)])
@@ -86,6 +90,10 @@ def convert_all_data(data_dir, ground_truth, grid_sizes, phase, num_workers):
     bar.update(num_image_ids)
     pool.close()
     pool.join()
+
+    assert len(images_rows) == len(masks_rows)
+
+    print(f'Processed successfully {len(images_rows)} images')
 
 
 def main():
