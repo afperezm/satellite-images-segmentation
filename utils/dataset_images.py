@@ -13,17 +13,20 @@ from utils.data_utils import ImageData
 
 DATA_DIR = None
 PHASE = None
+THRESHOLD = 0.0
 GROUND_TRUTH = None
 GRID_SIZES = None
 
 
-def init_worker(data_dir=None, phase=None, ground_truth=None, grid_sizes=None):
+def init_worker(data_dir=None, phase=None, threshold=None, ground_truth=None, grid_sizes=None):
     global DATA_DIR  # pylint: disable=global-statement
     global PHASE  # pylint: disable=global-statement
+    global THRESHOLD  # pylint: disable=global-statement
     global GROUND_TRUTH  # pylint: disable=global-statement
     global GRID_SIZES  # pylint: disable=global-statement
     DATA_DIR = data_dir
     PHASE = phase
+    THRESHOLD = threshold
     GROUND_TRUTH = ground_truth
     GRID_SIZES = grid_sizes
 
@@ -49,7 +52,7 @@ def _convert_one(img_key):
     image = image_data.train_feature
     label = image_data.label[..., 0]
 
-    if label.sum() / 1024 / 1024 >= 0.005:
+    if label.sum() / 1024 / 1024 >= THRESHOLD:
 
         sample = {'image': image, 'label': label}
         sample = transform(sample)
@@ -67,7 +70,7 @@ def _convert_one(img_key):
     return images, masks
 
 
-def convert_all_data(data_dir, ground_truth, grid_sizes, phase, num_workers):
+def convert_all_data(data_dir, ground_truth, grid_sizes, phase, threshold, num_workers):
 
     image_ids = list(ground_truth.ImageId.unique())
 
@@ -79,7 +82,7 @@ def convert_all_data(data_dir, ground_truth, grid_sizes, phase, num_workers):
     images_rows = OrderedDict()
     masks_rows = OrderedDict()
 
-    pool = Pool(initializer=init_worker, initargs=(data_dir, phase, ground_truth, grid_sizes), processes=num_workers)
+    pool = Pool(initializer=init_worker, initargs=(data_dir, phase, threshold, ground_truth, grid_sizes), processes=num_workers)
     bar = progressbar.ProgressBar(max_value=num_image_ids)
     for idx, processed in enumerate(pool.imap_unordered(_convert_one, image_ids), start=1):
         image_row = processed[0]
@@ -101,6 +104,7 @@ def main():
     data_dir = PARAMS.data_dir
     phase = PARAMS.phase
     num_workers = PARAMS.num_workers
+    threshold = PARAMS.threshold
 
     _df_ground_truth = pd.read_csv(f'{data_dir}/{phase}_wkt.csv',
                                    names=['ImageId', 'ClassType', 'MultipolygonWKT'], skiprows=1)
@@ -108,7 +112,7 @@ def main():
     _df_grid_sizes = pd.read_csv(f'{data_dir}/grid_sizes.csv',
                                  names=['ImageId', 'Xmax', 'Ymin', 'Xmin', 'Ymax'], skiprows=1)
 
-    convert_all_data(data_dir, _df_ground_truth, _df_grid_sizes, phase, num_workers)
+    convert_all_data(data_dir, _df_ground_truth, _df_grid_sizes, phase, threshold, num_workers)
 
 
 def parse_args():
@@ -124,10 +128,17 @@ def parse_args():
         choices=["train", "test"]
     )
     parser.add_argument(
+        "--threshold",
+        type=float,
+        help="Positivity threshold",
+        default=0.005
+    )
+    parser.add_argument(
         "--num_workers",
         type=int,
         help="Number of parallel processes to launch",
-        default=4)
+        default=4
+    )
     return parser.parse_args()
 
 
