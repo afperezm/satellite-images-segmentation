@@ -2,12 +2,15 @@ import argparse
 
 import cv2
 import os
+
+import numpy as np
 import pandas as pd
 import progressbar
 
 from codebase.utils.transforms import Normalize
 from collections import OrderedDict
 from multiprocessing import Pool
+from skimage import io as skio
 from torchvision import transforms
 from utils.data_utils import ImageData
 
@@ -57,8 +60,8 @@ def _convert_one(img_key):
         sample = {'image': image, 'label': label}
         sample = transform(sample)
 
-        cv2.imwrite(f'{DATA_DIR}/{PHASE}/{img_key}_sat.jpg', sample['image'][:, :, (0, 1, 2)])
-        cv2.imwrite(f'{DATA_DIR}/{PHASE}/{img_key}_mask.png', 255 * sample['label'])
+        skio.imsave(f'{DATA_DIR}/{PHASE}/{img_key}_sat.jpg', sample['image'][:, :, (0, 1, 2)].astype(np.uint8), check_contrast=False)
+        skio.imsave(f'{DATA_DIR}/{PHASE}/{img_key}_mask.png', 255 * sample['label'], check_contrast=False)
 
         images[img_key] = f'{DATA_DIR}/{PHASE}/{img_key}_sat.jpg'
         masks[img_key] = f'{DATA_DIR}/{PHASE}/{img_key}_mask.png'

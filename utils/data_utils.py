@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import tifffile as tiff
 from shapely import wkt
+from skimage import transform as sktr
 
 
 CLASSES = {
@@ -95,7 +96,7 @@ class ImageData:
             im10 = images['10']
             # im20 = images['20']
 
-            images['10'] = cv2.resize(im10, (width, height), interpolation=cv2.INTER_CUBIC)
+            images['10'] = sktr.resize(im10, (width, height), anti_aliasing=True)
             # images['20'] = cv2.resize(im20, (width, height), interpolation=cv2.INTER_CUBIC)
 
         return images
