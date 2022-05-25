@@ -92,7 +92,7 @@ class Normalize(object):
     Applies min-max normalization with percentiles cropping.
     """
 
-    def __init__(self, min_value=0.0, max_value=1.0, lower_percent=0, higher_percent=100):
+    def __init__(self, lower_percent, higher_percent, min_value=0.0, max_value=1.0):
 
         self.min_value = min_value
         self.max_value = max_value
@@ -111,9 +111,9 @@ class Normalize(object):
         num_bands = image.shape[2]
 
         for band_idx in range(num_bands):
-            # Compute 5% and 95% percentile values
-            lower_percentile = np.percentile(image[:, :, band_idx], self.lower_percent)
-            higher_percentile = np.percentile(image[:, :, band_idx], self.higher_percent)
+            # Retrieve bound values
+            lower_percentile = self.lower_percent[band_idx]
+            higher_percentile = self.higher_percent[band_idx]
             # Apply min-max normalization
             t = self.min_value + (image[:, :, band_idx] - lower_percentile) / (higher_percentile - lower_percentile)
             # Apply new range scaling
