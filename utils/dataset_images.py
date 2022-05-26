@@ -67,7 +67,7 @@ def _convert_one(img_key):
     image_data.create_train_feature()
     image_data.create_label()
 
-    image = image_data.train_feature
+    image = image_data.train_feature[..., [0, 1, 2]]
     label = image_data.label[..., 0]
 
     if label.sum() / 1024 / 1024 >= THRESHOLD:
