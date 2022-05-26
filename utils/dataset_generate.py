@@ -124,7 +124,10 @@ def _load_roads(roads_shp, roads_crs):
 
     roads_selected = roads[['geometry']]
 
-    print(f"  Done, got {len(roads)} features of type {roads_selected.geom_type[0]}")
+    # roads_selected = roads[roads['surface'] == 'paved']
+    # roads_selected = roads_selected[['geometry']]
+
+    print(f"  Done, got {len(roads_selected)} features")
 
     print("- Dissolving roads")
 
