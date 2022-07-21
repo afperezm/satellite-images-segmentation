@@ -122,10 +122,10 @@ def _load_roads(roads_shp, roads_crs):
     roads = gpd.read_file(roads_shp)
     roads = roads.to_crs(roads_crs)
 
-    roads_selected = roads[['geometry']]
+    # roads_selected = roads[['geometry']]
 
-    # roads_selected = roads[roads['surface'] == 'paved']
-    # roads_selected = roads_selected[['geometry']]
+    roads_selected = roads[roads['surface'].isin(['paved', 'unpaved'])]
+    roads_selected = roads_selected[['geometry']]
 
     print(f"  Done, got {len(roads_selected)} features")
 
