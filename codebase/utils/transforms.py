@@ -113,7 +113,8 @@ class Normalize(object):
         for band_idx in range(num_bands):
             # Compute 5% and 95% percentile values
             lower_percentile = np.percentile(image[:, :, band_idx], self.lower_percent)
-            higher_percentile = np.percentile(image[:, :, band_idx], self.higher_percent)
+            # higher_percentile = np.percentile(image[:, :, band_idx], self.higher_percent)
+            higher_percentile = np.mean(image[:, :, band_idx]) + 5 * np.std(image[:, :, band_idx])
             # Apply min-max normalization
             t = self.min_value + (image[:, :, band_idx] - lower_percentile) / (higher_percentile - lower_percentile)
             # Apply new range scaling
