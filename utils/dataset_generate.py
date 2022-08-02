@@ -12,7 +12,7 @@ import subprocess
 from multiprocessing import Pool
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 
 ROADS_BUFFERED = None
 OUTPUT_DIR = None
@@ -198,47 +198,68 @@ def _compose_dataset(output_dir, grid_csv, roads_shp, epsg_crs, class_idx, num_w
     return grid_sizes_rows, ground_truth_rows
 
 
-def _save_dataset(output_dir, grid_sizes, all_wkt_polygons):
-
-    # train_wkt_polygons, test_wkt_polygons = train_test_split(list(all_wkt_polygons.values()), random_state=42)
+def _save_dataset(output_dir, grid_sizes, all_wkt_polygons, num_folds=5):
 
     def parse_key(key):
         return int(key.split('_')[-1].split('-')[1])
 
     patches_indices = sorted(list(set([parse_key(value[0]) for value in all_wkt_polygons.values()])))
-    patches_train_indices, patches_test_indices = train_test_split(patches_indices, random_state=42)
+    patches_train_indices, patches_test_indices = [], []
 
-    train_wkt_polygons = [value for value in all_wkt_polygons.values() if
-                          parse_key(value[0]) in patches_train_indices]
-    test_wkt_polygons = [value for value in all_wkt_polygons.values() if
-                         parse_key(value[0]) in patches_test_indices]
+    if num_folds == 1:
+        train_indices, test_indices = train_test_split(patches_indices, random_state=42)
 
-    grid_sizes_csv = os.path.join(output_dir, 'grid_sizes.csv')
-    print(f"- Saving grid sizes in CSV format to: {grid_sizes_csv}")
-    with open(grid_sizes_csv, "wt", encoding="utf-8", newline="") as grid_sizes_csv_file:
-        writer = csv.DictWriter(grid_sizes_csv_file, fieldnames=['ImageId', 'Xmax', 'Ymin', 'Xmin', 'Ymax'])
-        writer.writeheader()
-        for image_id, x_min, x_max, y_min, y_max in list(grid_sizes.values()):
-            writer.writerow({'ImageId': image_id, 'Xmax': x_max, 'Ymin': y_min, 'Xmin': x_min, 'Ymax': y_max})
-    print("  Done")
+        patches_train_indices.append(train_indices)
+        patches_test_indices.append(test_indices)
+    else:
+        kf = KFold(n_splits=num_folds, shuffle=True, random_state=42)
+        kf.get_n_splits(patches_indices)
 
-    train_wkt_csv = os.path.join(output_dir, 'train_wkt.csv')
-    print(f"- Saving WKT train polygons in CSV format to: {train_wkt_csv}")
-    with open(train_wkt_csv, "wt", encoding="utf-8", newline="") as train_wkt_csv_file:
-        writer = csv.DictWriter(train_wkt_csv_file, fieldnames=['ImageId', 'ClassType', 'MultipolygonWKT'])
-        writer.writeheader()
-        for image_id, class_type, multipolygon_wkt in train_wkt_polygons:
-            writer.writerow({'ImageId': image_id, 'ClassType': class_type, 'MultipolygonWKT': multipolygon_wkt})
-    print("  Done")
+        for train_split_indices, test_split_index in kf.split(patches_indices):
+            train_indices = [patches_indices[idx] for idx in train_split_indices]
+            test_indices = [patches_indices[idx] for idx in test_split_index]
+            patches_train_indices.append(train_indices)
+            patches_test_indices.append(test_indices)
 
-    test_wkt_csv = os.path.join(output_dir, 'test_wkt.csv')
-    print(f"- Saving WKT test polygons in CSV format to: {test_wkt_csv}")
-    with open(test_wkt_csv, "wt", encoding="utf-8", newline="") as test_wkt_csv_file:
-        writer = csv.DictWriter(test_wkt_csv_file, fieldnames=['ImageId', 'ClassType', 'MultipolygonWKT'])
-        writer.writeheader()
-        for image_id, class_type, multipolygon_wkt in test_wkt_polygons:
-            writer.writerow({'ImageId': image_id, 'ClassType': class_type, 'MultipolygonWKT': multipolygon_wkt})
-    print("  Done")
+    for fold_idx in range(num_folds):
+
+        output_fold_dir = os.path.join(output_dir, f'fold-{fold_idx:04}')
+
+        if not os.path.exists(output_fold_dir):
+            os.makedirs(output_fold_dir)
+
+        grid_sizes_csv = os.path.join(output_fold_dir, 'grid_sizes.csv')
+        print(f"- Saving grid sizes in CSV format to: {grid_sizes_csv}")
+        with open(grid_sizes_csv, "wt", encoding="utf-8", newline="") as grid_sizes_csv_file:
+            writer = csv.DictWriter(grid_sizes_csv_file, fieldnames=['ImageId', 'Xmax', 'Ymin', 'Xmin', 'Ymax'])
+            writer.writeheader()
+            for image_id, x_min, x_max, y_min, y_max in list(grid_sizes.values()):
+                writer.writerow({'ImageId': image_id, 'Xmax': x_max, 'Ymin': y_min, 'Xmin': x_min, 'Ymax': y_max})
+        print("  Done")
+
+        train_indices = patches_train_indices[fold_idx]
+        train_wkt_polygons = [value for value in all_wkt_polygons.values() if
+                              parse_key(value[0]) in train_indices]
+        train_wkt_csv = os.path.join(output_fold_dir, 'train_wkt.csv')
+        print(f"- Saving WKT train polygons in CSV format to: {train_wkt_csv}")
+        with open(train_wkt_csv, "wt", encoding="utf-8", newline="") as train_wkt_csv_file:
+            writer = csv.DictWriter(train_wkt_csv_file, fieldnames=['ImageId', 'ClassType', 'MultipolygonWKT'])
+            writer.writeheader()
+            for image_id, class_type, multipolygon_wkt in train_wkt_polygons:
+                writer.writerow({'ImageId': image_id, 'ClassType': class_type, 'MultipolygonWKT': multipolygon_wkt})
+        print("  Done")
+
+        test_indices = patches_test_indices[fold_idx]
+        test_wkt_polygons = [value for value in all_wkt_polygons.values() if
+                             parse_key(value[0]) in test_indices]
+        test_wkt_csv = os.path.join(output_fold_dir, 'test_wkt.csv')
+        print(f"- Saving WKT test polygons in CSV format to: {test_wkt_csv}")
+        with open(test_wkt_csv, "wt", encoding="utf-8", newline="") as test_wkt_csv_file:
+            writer = csv.DictWriter(test_wkt_csv_file, fieldnames=['ImageId', 'ClassType', 'MultipolygonWKT'])
+            writer.writeheader()
+            for image_id, class_type, multipolygon_wkt in test_wkt_polygons:
+                writer.writerow({'ImageId': image_id, 'ClassType': class_type, 'MultipolygonWKT': multipolygon_wkt})
+        print("  Done")
 
 
 def main():
@@ -246,6 +267,7 @@ def main():
     grids_files = PARAMS.grids_files
     roads_files = PARAMS.roads_files
     crs_list = PARAMS.crs_list
+    num_folds = PARAMS.num_folds
     num_workers = PARAMS.num_workers
 
     assert len(grids_files) == len(roads_files) == len(crs_list)
@@ -263,7 +285,7 @@ def main():
         grid_sizes.update(grid_sizes_rows)
         ground_truth_polygons.update(ground_truth_rows)
 
-    _save_dataset(output_dir, grid_sizes, ground_truth_polygons)
+    _save_dataset(output_dir, grid_sizes, ground_truth_polygons, num_folds)
 
 
 def parse_args():
@@ -291,6 +313,11 @@ def parse_args():
         help="Output coordinate reference systems to use",
         default="epsg:3978"
     )
+    parser.add_argument(
+        "--num_folds",
+        type=int,
+        help="Number of folds to split the data in train/test sets.",
+        default=1)
     parser.add_argument(
         "--num_workers",
         type=int,
